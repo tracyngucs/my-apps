@@ -4,7 +4,7 @@ const TASKS_SHEET    = 'Tasks';
 const PERIOD_SHEET   = 'PeriodEntries';
 const LINKS_SHEET    = 'Links';
 
-const TASK_HEADERS   = ['id','title','description','category','dueDate','priority','completed','createdAt'];
+const TASK_HEADERS   = ['id','title','description','notes','category','dueDate','priority','completed','createdAt'];
 const PERIOD_HEADERS = ['date'];
 const LINKS_HEADERS  = ['id','label','url','createdAt'];
 
