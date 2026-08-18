@@ -155,6 +155,28 @@
         .period-delete-btn:hover { color: #dc2626; }
 
         small { font-size: 0.75rem; color: #64748b; }
+
+        /* Links / Notes */
+        .links-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 32px; }
+        .link-card {
+            background: white; border: 1px solid #e2e8f0; border-radius: 10px;
+            padding: 16px; display: flex; align-items: center; gap: 14px;
+            transition: box-shadow 0.2s;
+        }
+        .link-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+        .link-favicon {
+            width: 36px; height: 36px; border-radius: 8px;
+            background: #f1f5f9; display: flex; align-items: center;
+            justify-content: center; font-size: 1.2rem; flex-shrink: 0;
+        }
+        .link-info { flex: 1; min-width: 0; }
+        .link-label { font-weight: 600; color: #1e293b; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .link-url { font-size: 0.8rem; color: #3b82f6; text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+        .link-url:hover { text-decoration: underline; }
+        .link-actions { display: flex; gap: 4px; flex-shrink: 0; }
+        .link-btn { background: none; border: none; cursor: pointer; color: #9ca3af; padding: 6px; border-radius: 6px; transition: all 0.2s; font-size: 1rem; }
+        .link-btn:hover { background: #f1f5f9; color: #4b5563; }
+        .link-btn.delete:hover { background: #fef2f2; color: #dc2626; }
     </style>
 </head>
 <body>
@@ -169,6 +191,7 @@
         <nav class="tab-nav">
             <button class="tab-button active" onclick="switchTab('taskManager', event)">📋 Task Manager</button>
             <button class="tab-button"        onclick="switchTab('periodTracker', event)">📌 Period Tracker</button>
+            <button class="tab-button"        onclick="switchTab('notesTab', event)">🔗 Links</button>
         </nav>
     </aside>
 
@@ -267,6 +290,36 @@
             <div id="periodEmptyState" class="empty-state" style="display:none">
                 <div class="empty-state-emoji">📅</div>
                 <p class="empty-state-text">No period logs yet. Add your first date to get started!</p>
+            </div>
+        </div>
+        </div>
+
+        <!-- ── LINKS / NOTES ── -->
+        <div id="notesTab" class="tab-content">
+        <div class="container">
+            <header>
+                <h1>Links</h1>
+                <p class="subtitle">Save and organise your important links</p>
+            </header>
+
+            <div class="form-card">
+                <h2>Add New Link</h2>
+                <div class="form-group">
+                    <label for="linkLabel">Label</label>
+                    <input type="text" id="linkLabel" placeholder="e.g. Church Website, Business Proposal…" />
+                </div>
+                <div class="form-group">
+                    <label for="linkUrl">URL</label>
+                    <input type="text" id="linkUrl" placeholder="https://…" />
+                </div>
+                <button class="btn-primary" id="addLinkBtn" onclick="addLink()">➕ Save Link</button>
+            </div>
+
+            <div id="linksContainer"></div>
+
+            <div id="linksEmptyState" class="empty-state" style="display:none">
+                <div class="empty-state-emoji">🔗</div>
+                <p class="empty-state-text">No links saved yet. Add your first one above!</p>
             </div>
         </div>
         </div>
@@ -677,6 +730,106 @@ function renderPeriodTracker() {
 }
 
 // ============================================================
+// LINKS / NOTES
+// ============================================================
+let links = [];
+
+async function loadLinks() {
+    try {
+        links = await apiGet('links');
+        if (!Array.isArray(links)) links = [];
+    } catch (e) {
+        showToast('Could not load links', true);
+        links = [];
+    }
+    renderLinks();
+}
+
+async function addLink() {
+    const label = document.getElementById('linkLabel').value.trim();
+    let   url   = document.getElementById('linkUrl').value.trim();
+
+    if (!label) { showToast('Please enter a label', true); return; }
+    if (!url)   { showToast('Please enter a URL', true);   return; }
+    if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+
+    const btn = document.getElementById('addLinkBtn');
+    btn.disabled = true; btn.textContent = '…Saving';
+
+    const link = { id: Date.now(), label, url, createdAt: new Date().toLocaleDateString() };
+    links.unshift(link);
+    renderLinks();
+
+    try {
+        await apiPost('links', links);
+        showToast('Link saved ✓');
+    } catch (e) {
+        showToast('Save failed', true);
+    }
+
+    document.getElementById('linkLabel').value = '';
+    document.getElementById('linkUrl').value   = '';
+    btn.disabled = false; btn.textContent = '➕ Save Link';
+}
+
+async function deleteLink(id) {
+    if (!confirm('Delete this link?')) return;
+    links = links.filter(l => l.id != id);
+    renderLinks();
+    try {
+        await apiPost('links', links);
+        showToast('Deleted ✓');
+    } catch (e) {
+        showToast('Delete failed', true);
+    }
+}
+
+function getFavicon(url) {
+    const emojis = {
+        'youtube': '▶️', 'google': '🔍', 'facebook': '👤',
+        'instagram': '📸', 'twitter': '🐦', 'github': '💻',
+        'drive': '📁', 'docs': '📄', 'sheets': '📊',
+        'notion': '📝', 'slack': '💬', 'zoom': '📹'
+    };
+    const lower = url.toLowerCase();
+    for (const [key, emoji] of Object.entries(emojis)) {
+        if (lower.includes(key)) return emoji;
+    }
+    return '🔗';
+}
+
+function renderLinks() {
+    const container = document.getElementById('linksContainer');
+    const empty     = document.getElementById('linksEmptyState');
+
+    if (!links || links.length === 0) {
+        container.innerHTML = '';
+        empty.style.display = 'block';
+        return;
+    }
+    empty.style.display = 'none';
+
+    let html = '<div class="links-list">';
+    links.forEach(link => {
+        if (!link || !link.url) return;
+        html += `
+        <div class="link-card">
+            <div class="link-favicon">${getFavicon(link.url)}</div>
+            <div class="link-info">
+                <div class="link-label">${esc(link.label)}</div>
+                <a class="link-url" href="${esc(link.url)}" target="_blank" rel="noopener">${esc(link.url)}</a>
+            </div>
+            <div class="link-actions">
+                <button class="link-btn" onclick="window.open('${esc(link.url)}','_blank')" title="Open link">↗️</button>
+                <button class="link-btn delete" onclick="deleteLink(${link.id})" title="Delete">🗑️</button>
+            </div>
+        </div>`;
+    });
+    html += '</div>';
+    container.innerHTML = html;
+}
+
+// ============================================================
 // Tab switcher
 // ============================================================
 function switchTab(tabName, event) {
@@ -695,6 +848,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     loadTasks();
     loadPeriodData();
+    loadLinks();
 });
 </script>
 </body>
