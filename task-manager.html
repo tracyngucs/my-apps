@@ -519,17 +519,23 @@ function updateStats() {
 function renderDescription(description) {
     if (!description) return '';
     const lines = description.split('\n');
-    const hasBullets = lines.some(l => l.trim().startsWith('- ') || l.trim().startsWith('* '));
-    if (hasBullets) {
-        let html = '<ul class="task-description">';
-        lines.forEach(line => {
-            const t = line.trim();
-            if (t.startsWith('- ') || t.startsWith('* ')) html += `<li>${esc(t.substring(2))}</li>`;
-            else if (t) html += `<li>${esc(t)}</li>`;
-        });
-        return html + '</ul>';
-    }
-    return `<div class="task-description">${esc(description)}</div>`;
+    let html = '<div class="task-description">';
+    let inList = false;
+
+    lines.forEach(line => {
+        const t = line.trim();
+        if (t.startsWith('- ')) {
+            if (!inList) { html += '<ul>'; inList = true; }
+            html += `<li>${esc(t.substring(2))}</li>`;
+        } else {
+            if (inList) { html += '</ul>'; inList = false; }
+            if (t) html += `<p>${esc(t)}</p>`;
+        }
+    });
+
+    if (inList) html += '</ul>';
+    html += '</div>';
+    return html;
 }
 
 function formatDueDate(dueDate) {
