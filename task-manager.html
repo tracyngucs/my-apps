@@ -161,9 +161,14 @@
         .link-card {
             background: white; border: 1px solid #e2e8f0; border-radius: 10px;
             padding: 16px; display: flex; align-items: center; gap: 14px;
-            transition: box-shadow 0.2s;
+            transition: box-shadow 0.2s, opacity 0.2s;
         }
         .link-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+        .link-card.dragging { opacity: 0.4; }
+        .link-card.drag-over { border: 2px dashed #3b82f6; background: #eff6ff; }
+        .drag-handle { cursor: grab; color: #cbd5e1; font-size: 1.1rem; flex-shrink: 0; padding: 2px 4px; user-select: none; }
+        .drag-handle:hover { color: #94a3b8; }
+        .drag-handle:active { cursor: grabbing; }
         .link-favicon {
             width: 36px; height: 36px; border-radius: 8px;
             background: #f1f5f9; display: flex; align-items: center;
@@ -177,6 +182,17 @@
         .link-btn { background: none; border: none; cursor: pointer; color: #9ca3af; padding: 6px; border-radius: 6px; transition: all 0.2s; font-size: 1rem; }
         .link-btn:hover { background: #f1f5f9; color: #4b5563; }
         .link-btn.delete:hover { background: #fef2f2; color: #dc2626; }
+        .link-btn.edit:hover { background: #eff6ff; color: #2563eb; }
+
+        /* Link edit form inline */
+        .link-edit-form { display: flex; flex-direction: column; gap: 10px; flex: 1; }
+        .link-edit-form input { padding: 7px 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit; font-size: 0.9rem; }
+        .link-edit-form input:focus { outline: none; box-shadow: 0 0 0 2px #3b82f6; border-color: transparent; }
+        .link-edit-actions { display: flex; gap: 6px; }
+        .link-save-btn { background: #2563eb; color: white; border: none; padding: 6px 14px; border-radius: 7px; cursor: pointer; font-size: 0.85rem; font-weight: 500; transition: background 0.2s; }
+        .link-save-btn:hover { background: #1d4ed8; }
+        .link-cancel-btn { background: white; color: #475569; border: 1px solid #cbd5e1; padding: 6px 14px; border-radius: 7px; cursor: pointer; font-size: 0.85rem; font-weight: 500; transition: all 0.2s; }
+        .link-cancel-btn:hover { background: #f1f5f9; }
     </style>
 </head>
 <body>
@@ -732,7 +748,9 @@ function renderPeriodTracker() {
 // ============================================================
 // LINKS / NOTES
 // ============================================================
-let links = [];
+let links      = [];
+let editingLinkId = null;
+let dragSrcIdx = null;
 
 async function loadLinks() {
     try {
@@ -748,7 +766,6 @@ async function loadLinks() {
 async function addLink() {
     const label = document.getElementById('linkLabel').value.trim();
     let   url   = document.getElementById('linkUrl').value.trim();
-
     if (!label) { showToast('Please enter a label', true); return; }
     if (!url)   { showToast('Please enter a URL', true);   return; }
     if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
@@ -756,74 +773,137 @@ async function addLink() {
     const btn = document.getElementById('addLinkBtn');
     btn.disabled = true; btn.textContent = '…Saving';
 
-    const link = { id: Date.now(), label, url, createdAt: new Date().toLocaleDateString() };
-    links.unshift(link);
+    links.unshift({ id: Date.now(), label, url, createdAt: new Date().toLocaleDateString() });
     renderLinks();
-
-    try {
-        await apiPost('links', links);
-        showToast('Link saved ✓');
-    } catch (e) {
-        showToast('Save failed', true);
-    }
+    try { await apiPost('links', links); showToast('Link saved ✓'); }
+    catch (e) { showToast('Save failed', true); }
 
     document.getElementById('linkLabel').value = '';
     document.getElementById('linkUrl').value   = '';
     btn.disabled = false; btn.textContent = '➕ Save Link';
 }
 
+function startEditLink(id) {
+    editingLinkId = id;
+    renderLinks();
+    // Focus the label input after render
+    setTimeout(() => { const el = document.getElementById(`edit-link-label-${id}`); if (el) el.focus(); }, 50);
+}
+
+function cancelEditLink() {
+    editingLinkId = null;
+    renderLinks();
+}
+
+async function saveEditLink(id) {
+    const link  = links.find(l => l.id == id);
+    if (!link) return;
+    const label = document.getElementById(`edit-link-label-${id}`).value.trim();
+    let   url   = document.getElementById(`edit-link-url-${id}`).value.trim();
+    if (!label) { showToast('Label cannot be empty', true); return; }
+    if (!url)   { showToast('URL cannot be empty', true);   return; }
+    if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+
+    link.label = label;
+    link.url   = url;
+    editingLinkId = null;
+    renderLinks();
+    try { await apiPost('links', links); showToast('Updated ✓'); }
+    catch (e) { showToast('Save failed', true); }
+}
+
 async function deleteLink(id) {
     if (!confirm('Delete this link?')) return;
     links = links.filter(l => l.id != id);
     renderLinks();
-    try {
-        await apiPost('links', links);
-        showToast('Deleted ✓');
-    } catch (e) {
-        showToast('Delete failed', true);
-    }
+    try { await apiPost('links', links); showToast('Deleted ✓'); }
+    catch (e) { showToast('Delete failed', true); }
+}
+
+// ── Drag to reorder ──────────────────────────────────────────
+function onDragStart(e, idx) {
+    dragSrcIdx = idx;
+    e.dataTransfer.effectAllowed = 'move';
+    setTimeout(() => e.target.closest('.link-card').classList.add('dragging'), 0);
+}
+function onDragEnd(e) {
+    e.target.closest('.link-card').classList.remove('dragging');
+    document.querySelectorAll('.link-card').forEach(c => c.classList.remove('drag-over'));
+}
+function onDragOver(e, idx) {
+    e.preventDefault();
+    document.querySelectorAll('.link-card').forEach(c => c.classList.remove('drag-over'));
+    if (idx !== dragSrcIdx) e.currentTarget.classList.add('drag-over');
+}
+async function onDrop(e, idx) {
+    e.preventDefault();
+    e.currentTarget.classList.remove('drag-over');
+    if (dragSrcIdx === null || dragSrcIdx === idx) return;
+    const moved = links.splice(dragSrcIdx, 1)[0];
+    links.splice(idx, 0, moved);
+    dragSrcIdx = null;
+    renderLinks();
+    try { await apiPost('links', links); showToast('Order saved ✓'); }
+    catch (err) { showToast('Save failed', true); }
 }
 
 function getFavicon(url) {
-    const emojis = {
-        'youtube': '▶️', 'google': '🔍', 'facebook': '👤',
-        'instagram': '📸', 'twitter': '🐦', 'github': '💻',
-        'drive': '📁', 'docs': '📄', 'sheets': '📊',
-        'notion': '📝', 'slack': '💬', 'zoom': '📹'
+    const map = {
+        'youtube':'▶️','google':'🔍','facebook':'👤','instagram':'📸',
+        'twitter':'🐦','github':'💻','drive':'📁','docs':'📄',
+        'sheets':'📊','notion':'📝','slack':'💬','zoom':'📹'
     };
     const lower = url.toLowerCase();
-    for (const [key, emoji] of Object.entries(emojis)) {
-        if (lower.includes(key)) return emoji;
-    }
+    for (const [k, v] of Object.entries(map)) if (lower.includes(k)) return v;
     return '🔗';
 }
 
 function renderLinks() {
     const container = document.getElementById('linksContainer');
     const empty     = document.getElementById('linksEmptyState');
-
     if (!links || links.length === 0) {
-        container.innerHTML = '';
-        empty.style.display = 'block';
-        return;
+        container.innerHTML = ''; empty.style.display = 'block'; return;
     }
     empty.style.display = 'none';
 
     let html = '<div class="links-list">';
-    links.forEach(link => {
-        if (!link || !link.url) return;
-        html += `
-        <div class="link-card">
+    links.forEach((link, idx) => {
+        if (!link?.url) return;
+        const isEditing = editingLinkId == link.id;
+        html += `<div class="link-card"
+            draggable="${!isEditing}"
+            ondragstart="onDragStart(event,${idx})"
+            ondragend="onDragEnd(event)"
+            ondragover="onDragOver(event,${idx})"
+            ondrop="onDrop(event,${idx})">`;
+
+        if (isEditing) {
+            html += `
+            <div class="drag-handle" style="opacity:0.3">⠿</div>
+            <div class="link-favicon">${getFavicon(link.url)}</div>
+            <div class="link-edit-form">
+                <input type="text" id="edit-link-label-${link.id}" value="${esc(link.label)}" placeholder="Label" />
+                <input type="text" id="edit-link-url-${link.id}"   value="${esc(link.url)}"   placeholder="https://…" />
+                <div class="link-edit-actions">
+                    <button class="link-save-btn"   onclick="saveEditLink(${link.id})">Save</button>
+                    <button class="link-cancel-btn" onclick="cancelEditLink()">Cancel</button>
+                </div>
+            </div>`;
+        } else {
+            html += `
+            <div class="drag-handle" title="Drag to reorder">⠿</div>
             <div class="link-favicon">${getFavicon(link.url)}</div>
             <div class="link-info">
                 <div class="link-label">${esc(link.label)}</div>
                 <a class="link-url" href="${esc(link.url)}" target="_blank" rel="noopener">${esc(link.url)}</a>
             </div>
             <div class="link-actions">
-                <button class="link-btn" onclick="window.open('${esc(link.url)}','_blank')" title="Open link">↗️</button>
-                <button class="link-btn delete" onclick="deleteLink(${link.id})" title="Delete">🗑️</button>
-            </div>
-        </div>`;
+                <button class="link-btn"        onclick="window.open('${esc(link.url)}','_blank')" title="Open">↗️</button>
+                <button class="link-btn edit"   onclick="startEditLink(${link.id})" title="Edit">✏️</button>
+                <button class="link-btn delete" onclick="deleteLink(${link.id})"    title="Delete">🗑️</button>
+            </div>`;
+        }
+        html += `</div>`;
     });
     html += '</div>';
     container.innerHTML = html;
