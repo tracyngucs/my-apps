@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Apps</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(to bottom right, #f8fafc, #f1f5f9);
+            min-height: 100vh;
+            color: #1e293b;
+        }
+
+        .app-container { display: flex; height: 100vh; }
+
+        /* Sidebar */
+        .sidebar {
+            width: 200px;
+            background: white;
+            border-right: 1px solid #e2e8f0;
+            padding: 24px 16px;
+            overflow-y: auto;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            flex-shrink: 0;
+        }
+        .sidebar-header { margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid #e2e8f0; }
+        .sidebar-header h2 { font-size: 0.875rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; }
+        .tab-nav { display: flex; flex-direction: column; gap: 8px; }
+        .tab-button { width: 100%; padding: 12px 14px; border: none; border-radius: 8px; background: transparent; color: #475569; font-weight: 500; cursor: pointer; text-align: left; transition: all 0.2s; font-size: 0.95rem; }
+        .tab-button:hover { background: #f1f5f9; color: #1e293b; }
+        .tab-button.active { background: #2563eb; color: white; }
+
+        /* Main */
+        .main-content { flex: 1; overflow-y: auto; padding: 24px; }
+        .tab-content { display: none; width: 100%; }
+        .tab-content.active { display: block; }
+        .container { max-width: 42rem; margin: 0 auto; }
+
+        /* Header */
+        header { margin-bottom: 32px; }
+        h1 { font-size: 2.25rem; font-weight: bold; margin-bottom: 8px; }
+        .subtitle { color: #475569; }
+
+        /* Stats */
+        .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 32px; }
+        .stat-card { background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; text-align: center; }
+        .stat-number { font-size: 1.875rem; font-weight: bold; margin-bottom: 8px; }
+        .stat-total { color: #1e293b; } .stat-completed { color: #16a34a; } .stat-pending { color: #ea580c; }
+        .stat-label { font-size: 0.875rem; color: #475569; }
+
+        /* Form */
+        .form-card { background: white; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.07); padding: 24px; margin-bottom: 32px; }
+        .form-card h2 { font-size: 1.125rem; font-weight: 600; margin-bottom: 16px; }
+        .form-group { margin-bottom: 16px; }
+        label { display: block; font-size: 0.875rem; font-weight: 500; margin-bottom: 8px; color: #334155; }
+        input[type="text"], input[type="date"], input[type="number"], textarea, select {
+            width: 100%; padding: 8px 16px; border: 1px solid #cbd5e1; border-radius: 8px;
+            font-family: inherit; font-size: 1rem; transition: all 0.2s;
+        }
+        input:focus, textarea:focus, select:focus { outline: none; box-shadow: 0 0 0 2px #3b82f6; border-color: transparent; }
+        textarea { resize: none; min-height: 80px; }
+
+        /* Buttons */
+        .btn-primary { width: 100%; background: #2563eb; color: white; border: none; padding: 12px 16px; border-radius: 8px; font-weight: 500; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: background 0.2s; font-size: 1rem; }
+        .btn-primary:hover { background: #1d4ed8; }
+        .btn-primary:disabled { background: #93c5fd; cursor: not-allowed; }
+        .btn-secondary, .btn-save { padding: 8px 16px; border-radius: 8px; border: 1px solid #cbd5e1; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.2s; font-size: 0.875rem; }
+        .btn-secondary { background: white; color: #334155; }
+        .btn-secondary:hover { background: #f1f5f9; }
+        .btn-save { background: #2563eb; color: white; border-color: transparent; }
+        .btn-save:hover { background: #1d4ed8; }
+
+        /* Filters */
+        .filters { display: flex; gap: 8px; margin-bottom: 24px; flex-wrap: wrap; }
+        .filter-btn { padding: 8px 16px; border-radius: 8px; font-weight: 500; border: 1px solid #e2e8f0; background: white; color: #334155; cursor: pointer; transition: all 0.2s; }
+        .filter-btn:hover { background: #f1f5f9; }
+        .filter-btn.active { color: white; border-color: transparent; }
+        .filter-btn.active.all { background: #2563eb; }
+        .filter-btn.active.urgent { background: #dc2626; }
+        .filter-btn.active.pending { background: #ea580c; }
+        .filter-btn.active.completed { background: #16a34a; }
+
+        /* Task Cards */
+        .category-section { margin-bottom: 24px; }
+        .category-title { font-size: 1.125rem; font-weight: 600; margin-bottom: 12px; color: #1e293b; }
+        .empty-category { background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 24px; text-align: center; color: #64748b; }
+        .task-list { display: flex; flex-direction: column; gap: 8px; }
+        .task-card { border: 1px solid #e2e8f0; border-radius: 8px; transition: all 0.2s; }
+        .task-card.church { background: #f0f4ff; border-color: #bfdbfe; }
+        .task-card.business { background: #fffbeb; border-color: #fed7aa; }
+        .task-card.personal { background: #f0fdf4; border-color: #bbf7d0; }
+        .task-card.completed { opacity: 0.6; }
+        .task-content { padding: 16px; cursor: pointer; transition: background 0.2s; }
+        .task-content:hover { background: rgba(255,255,255,0.4); }
+        .task-header { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+        .task-checkbox { background: none; border: none; cursor: pointer; padding: 4px; display: flex; align-items: center; color: #9ca3af; transition: color 0.2s; flex-shrink: 0; margin-top: 2px; }
+        .task-checkbox:hover { color: #4b5563; }
+        .task-title { font-weight: 500; color: #1e293b; flex: 1; }
+        .task-title.completed { text-decoration: line-through; color: #64748b; }
+        .task-badge { font-size: 0.75rem; font-weight: 600; padding: 4px 8px; border-radius: 4px; flex-shrink: 0; }
+        .task-badge.church { background: #dbeafe; color: #1e40af; }
+        .task-badge.business { background: #fef3c7; color: #92400e; }
+        .task-badge.personal { background: #dcfce7; color: #166534; }
+        .task-description { color: #475569; font-size: 0.875rem; margin-bottom: 8px; margin-left: 36px; white-space: pre-wrap; }
+        .task-description ul { list-style-position: outside; margin-left: 0; padding-left: 16px; }
+        .task-description li { margin-bottom: 4px; }
+        .task-footer { display: flex; align-items: flex-end; justify-content: space-between; font-size: 0.75rem; color: #64748b; }
+        .task-date { flex: 1; }
+        .task-due-date { font-size: 0.75rem; color: #64748b; margin-top: 4px; }
+        .task-due-date.overdue { color: #dc2626; font-weight: 600; }
+        .task-actions { display: flex; gap: 8px; align-items: center; }
+        .task-action-btn { background: none; border: none; cursor: pointer; color: #9ca3af; padding: 4px; display: flex; transition: color 0.2s; }
+        .task-action-btn:hover { color: #4b5563; }
+        .task-action-btn.delete:hover { color: #dc2626; }
+        .task-action-btn.priority.active { color: #f59e0b; }
+
+        /* Edit Mode */
+        .edit-mode { padding: 16px; }
+        .edit-form { display: flex; flex-direction: column; gap: 16px; }
+        .edit-form-group { display: flex; flex-direction: column; }
+        .edit-form-group label { margin-bottom: 6px; }
+        .edit-form-group input, .edit-form-group textarea, .edit-form-group select { padding: 8px 12px; }
+        .edit-actions { display: flex; gap: 8px; justify-content: flex-end; }
+
+        /* Empty / Loading */
+        .empty-state { background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 48px 24px; text-align: center; }
+        .empty-state-emoji { font-size: 3rem; margin-bottom: 16px; }
+        .empty-state-text { color: #475569; font-size: 1.125rem; }
+
+        /* Toast */
+        .toast { position: fixed; bottom: 24px; right: 24px; background: #1e293b; color: white; padding: 12px 20px; border-radius: 8px; font-size: 0.875rem; opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 999; }
+        .toast.show { opacity: 1; }
+        .toast.error { background: #dc2626; }
+
+        /* Saving indicator */
+        .saving-badge { display: inline-flex; align-items: center; gap: 6px; font-size: 0.75rem; color: #64748b; padding: 4px 10px; background: #f1f5f9; border-radius: 20px; margin-left: 12px; }
+
+        /* Icons */
+        .icon { display: inline-block; width: 24px; height: 24px; }
+        svg { width: 100%; height: 100%; fill: currentColor; }
+
+        /* Period Tracker */
+        .period-prediction { background: linear-gradient(135deg, #fef3c7 0%, #fed7aa 100%); padding: 20px; border-radius: 12px; border: 1px solid #fcd34d; }
+        .period-prediction h3 { font-size: 0.875rem; color: #92400e; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }
+        .predicted-date { font-size: 1.875rem; font-weight: bold; color: #78350f; margin-bottom: 8px; }
+        .days-until { font-size: 0.875rem; color: #92400e; }
+        .period-history-list { display: flex; flex-direction: column; gap: 8px; }
+        .period-history-item { display: flex; align-items: center; justify-content: space-between; padding: 12px; background: #f8fafc; border-radius: 8px; border-left: 4px solid #fcd34d; }
+        .period-history-date { font-weight: 600; color: #1e293b; }
+        .period-history-cycle { font-size: 0.875rem; color: #64748b; }
+        .period-delete-btn { background: none; border: none; color: #9ca3af; cursor: pointer; padding: 4px 8px; transition: color 0.2s; font-size: 1rem; }
+        .period-delete-btn:hover { color: #dc2626; }
+
+        small { font-size: 0.75rem; color: #64748b; }
+    </style>
+</head>
+<body>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<div class="app-container">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="sidebar-header"><h2>My Apps</h2></div>
+        <nav class="tab-nav">
+            <button class="tab-button active" onclick="switchTab('taskManager', event)">📋 Task Manager</button>
+            <button class="tab-button"        onclick="switchTab('periodTracker', event)">📌 Period Tracker</button>
+        </nav>
+    </aside>
+
+    <main class="main-content">
+
+        <!-- ── TASK MANAGER ── -->
+        <div id="taskManager" class="tab-content active">
+        <div class="container">
+            <header>
+                <h1>Task Manager <span id="savingBadge" class="saving-badge" style="display:none">⏳ Saving…</span></h1>
+                <p class="subtitle">Organize your tasks by category</p>
+            </header>
+
+            <div class="stats">
+                <div class="stat-card"><div class="stat-number stat-total"     id="statTotal">0</div><div class="stat-label">Total</div></div>
+                <div class="stat-card"><div class="stat-number stat-completed" id="statCompleted">0</div><div class="stat-label">Completed</div></div>
+                <div class="stat-card"><div class="stat-number stat-pending"   id="statPending">0</div><div class="stat-label">Pending</div></div>
+            </div>
+
+            <div class="form-card">
+                <h2>Add New Task</h2>
+                <div class="form-group">
+                    <label for="taskTitle">Task Title</label>
+                    <input type="text" id="taskTitle" placeholder="What needs to be done?" />
+                </div>
+                <div class="form-group">
+                    <label for="taskDescription">Description (optional — use "- " for bullets)</label>
+                    <textarea id="taskDescription" placeholder="Add more details..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="taskCategory">Category</label>
+                    <select id="taskCategory">
+                        <option value="Personal">Personal</option>
+                        <option value="Church">Church</option>
+                        <option value="Business">Business</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="taskDueDate">Due Date (optional)</label>
+                    <input type="date" id="taskDueDate" />
+                </div>
+                <button class="btn-primary" id="addTaskBtn" onclick="addTask()">➕ Add Task</button>
+            </div>
+
+            <div class="filters">
+                <button class="filter-btn active all"       onclick="setFilter('all',       event)">All</button>
+                <button class="filter-btn urgent"           onclick="setFilter('urgent',    event)">🚨 Urgent</button>
+                <button class="filter-btn pending"          onclick="setFilter('incomplete',event)">Pending</button>
+                <button class="filter-btn completed"        onclick="setFilter('completed', event)">Completed</button>
+            </div>
+
+            <div id="tasksContainer"></div>
+            <div id="emptyState" style="display:none" class="empty-state">
+                <div class="empty-state-emoji">✨</div>
+                <p class="empty-state-text">No tasks yet. Add one to get started!</p>
+            </div>
+        </div>
+        </div>
+
+        <!-- ── PERIOD TRACKER ── -->
+        <div id="periodTracker" class="tab-content">
+        <div class="container">
+            <header>
+                <h1>Period Tracker</h1>
+                <p class="subtitle">Track your cycle and predict your next period</p>
+            </header>
+
+            <div class="stats" id="periodStatsContainer" style="display:none">
+                <div class="stat-card"><div class="stat-number" id="avgCycleDisplay">28</div><div class="stat-label">Avg Cycle (days)</div></div>
+                <div class="stat-card"><div class="stat-number" id="totalLogsDisplay">0</div><div class="stat-label">Period Logs</div></div>
+                <div class="stat-card"><div class="stat-number" id="daysUntilNextDisplay">-</div><div class="stat-label">Days Until Next</div></div>
+            </div>
+
+            <div class="form-card" id="periodPredictionCard" style="display:none">
+                <div class="period-prediction">
+                    <h3>Next Predicted Period</h3>
+                    <div class="predicted-date" id="nextPeriodPrediction">-</div>
+                    <div class="days-until"     id="nextPeriodDaysUntil">-</div>
+                </div>
+            </div>
+
+            <div class="form-card">
+                <h2>Log Period Date</h2>
+                <div class="form-group">
+                    <label for="periodDateInput">Period Date</label>
+                    <input type="date" id="periodDateInput" />
+                </div>
+                <button class="btn-primary" id="logPeriodBtn" onclick="addPeriodEntry()">➕ Log Period</button>
+            </div>
+
+            <div class="form-card" id="historyCard" style="display:none">
+                <h2>Period History</h2>
+                <div id="periodHistoryList" class="period-history-list"></div>
+            </div>
+
+            <div id="periodEmptyState" class="empty-state" style="display:none">
+                <div class="empty-state-emoji">📅</div>
+                <p class="empty-state-text">No period logs yet. Add your first date to get started!</p>
+            </div>
+        </div>
+        </div>
+
+    </main>
+</div>
+
+<script>
+// ============================================================
+// CONFIG — paste your deployed Apps Script URL here
+// ============================================================
+const API_URL = 'https://script.google.com/macros/s/AKfycbwcalP240Iz8KMUEjFjSpIyXfdV7uR-YIcKaGloYN-SqsFCesrSW3jYuGS7stXv8g9E/exec';
+
+// ============================================================
+// State
+// ============================================================
+let tasks         = [];
+let periodEntries = [];
+let currentFilter = 'all';
+let editingId     = null;
+
+// ============================================================
+// API helpers
+// ============================================================
+async function apiGet(type) {
+    const res  = await fetch(`${API_URL}?type=${type}`);
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error);
+    return json.data || [];
+}
+
+async function apiPost(type, data) {
+    const res  = await fetch(API_URL, {
+        method:  'POST',
+        body:    JSON.stringify({ type, data }),
+    });
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error);
+}
+
+// ============================================================
+// Toast
+// ============================================================
+function showToast(msg, isError = false) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className   = 'toast show' + (isError ? ' error' : '');
+    setTimeout(() => { t.className = 'toast'; }, 3000);
+}
+
+function setSaving(show) {
+    document.getElementById('savingBadge').style.display = show ? 'inline-flex' : 'none';
+}
+
+// ============================================================
+// TASK MANAGER
+// ============================================================
+async function loadTasks() {
+    try {
+        tasks = await apiGet('tasks');
+    } catch (e) {
+        showToast('Could not load tasks — check your API URL', true);
+        tasks = [];
+    }
+    renderTasks();
+    updateStats();
+}
+
+async function saveTasks() {
+    setSaving(true);
+    try {
+        await apiPost('tasks', tasks);
+        showToast('Saved ✓');
+    } catch (e) {
+        showToast('Save failed — check API URL', true);
+    }
+    setSaving(false);
+    updateStats();
+}
+
+async function addTask() {
+    const title       = document.getElementById('taskTitle').value.trim();
+    const description = document.getElementById('taskDescription').value.trim();
+    const category    = document.getElementById('taskCategory').value;
+    const dueDate     = document.getElementById('taskDueDate').value;
+
+    if (!title) { showToast('Please enter a task title', true); return; }
+
+    const btn = document.getElementById('addTaskBtn');
+    btn.disabled = true; btn.textContent = '…Saving';
+
+    const task = {
+        id:          Date.now(),
+        title,
+        description,
+        category,
+        dueDate:     dueDate || '',
+        priority:    false,
+        completed:   false,
+        createdAt:   new Date().toLocaleDateString()
+    };
+    tasks.push(task);
+    renderTasks();
+
+    await saveTasks();
+
+    document.getElementById('taskTitle').value       = '';
+    document.getElementById('taskDescription').value = '';
+    document.getElementById('taskCategory').value    = 'Personal';
+    document.getElementById('taskDueDate').value     = '';
+    btn.disabled = false; btn.textContent = '➕ Add Task';
+}
+
+async function toggleComplete(id, event) {
+    event.stopPropagation();
+    const t = tasks.find(t => t.id == id);
+    if (t) { t.completed = !t.completed; renderTasks(); await saveTasks(); }
+}
+
+async function togglePriority(id, event) {
+    event.stopPropagation();
+    const t = tasks.find(t => t.id == id);
+    if (t) { t.priority = !t.priority; renderTasks(); await saveTasks(); }
+}
+
+async function deleteTask(id, event) {
+    event.stopPropagation();
+    if (!confirm('Delete this task?')) return;
+    tasks = tasks.filter(t => t.id != id);
+    renderTasks();
+    await saveTasks();
+}
+
+function startEdit(id, event) {
+    event.stopPropagation();
+    editingId = id;
+    renderTasks();
+}
+
+async function saveEdit(id) {
+    const t = tasks.find(t => t.id == id);
+    if (t) {
+        t.title       = document.getElementById(`edit-title-${id}`).value.trim() || t.title;
+        t.description = document.getElementById(`edit-desc-${id}`).value.trim();
+        t.category    = document.getElementById(`edit-cat-${id}`).value;
+        t.dueDate     = document.getElementById(`edit-due-${id}`).value;
+        editingId = null;
+        renderTasks();
+        await saveTasks();
+    }
+}
+
+function cancelEdit(event) {
+    event.stopPropagation();
+    editingId = null;
+    renderTasks();
+}
+
+function setFilter(filter, event) {
+    currentFilter = filter;
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    event.target.classList.add('active');
+    renderTasks();
+}
+
+function getFilteredTasks() {
+    return tasks.filter(t => {
+        if (currentFilter === 'urgent')     return t.priority && !t.completed;
+        if (currentFilter === 'completed')  return t.completed;
+        if (currentFilter === 'incomplete') return !t.completed;
+        return true;
+    });
+}
+
+function updateStats() {
+    document.getElementById('statTotal').textContent     = tasks.length;
+    document.getElementById('statCompleted').textContent = tasks.filter(t => t.completed).length;
+    document.getElementById('statPending').textContent   = tasks.filter(t => !t.completed).length;
+}
+
+function renderDescription(description) {
+    if (!description) return '';
+    const lines = description.split('\n');
+    const hasBullets = lines.some(l => l.trim().startsWith('- ') || l.trim().startsWith('* '));
+    if (hasBullets) {
+        let html = '<ul class="task-description">';
+        lines.forEach(line => {
+            const t = line.trim();
+            if (t.startsWith('- ') || t.startsWith('* ')) html += `<li>${esc(t.substring(2))}</li>`;
+            else if (t) html += `<li>${esc(t)}</li>`;
+        });
+        return html + '</ul>';
+    }
+    return `<div class="task-description">${esc(description)}</div>`;
+}
+
+function formatDueDate(dueDate) {
+    if (!dueDate) return null;
+    const date  = new Date(dueDate + 'T00:00:00');
+    const today = new Date(); today.setHours(0,0,0,0);
+    return { text: `Due ${date.toLocaleDateString('en-US',{month:'short',day:'numeric'})}`, isOverdue: date < today };
+}
+
+function esc(text) {
+    const d = document.createElement('div');
+    d.textContent = text;
+    return d.innerHTML;
+}
+
+const icons = {
+    checkCircle:  '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 12l2 2 4-4" stroke="currentColor" stroke-width="2" fill="none"/></svg>',
+    circle:       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle></svg>',
+    trash:        '<svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>',
+    edit:         '<svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25z"/><path d="M20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>',
+    save:         '<svg viewBox="0 0 24 24"><path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/></svg>',
+    close:        '<svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>',
+    star:         '<svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>',
+    starOutline:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>'
+};
+
+function renderTasks() {
+    const container = document.getElementById('tasksContainer');
+    const empty     = document.getElementById('emptyState');
+    const filtered  = getFilteredTasks();
+    const grouped   = {
+        Church:   filtered.filter(t => t.category === 'Church'),
+        Business: filtered.filter(t => t.category === 'Business'),
+        Personal: filtered.filter(t => t.category === 'Personal')
+    };
+
+    if (tasks.length === 0) { container.innerHTML = ''; empty.style.display = 'block'; return; }
+    empty.style.display = 'none';
+
+    let html = '';
+    Object.entries(grouped).forEach(([category, list]) => {
+        const catClass = category.toLowerCase();
+        html += `<div class="category-section"><h3 class="category-title">${category}</h3>`;
+        if (list.length === 0) {
+            html += `<div class="empty-category">No ${category.toLowerCase()} tasks</div>`;
+        } else {
+            html += `<div class="task-list">`;
+            list.forEach(task => {
+                html += `<div class="task-card ${catClass} ${task.completed ? 'completed' : ''}">`;
+                if (editingId == task.id) {
+                    html += `<div class="edit-mode"><div class="edit-form">
+                        <div class="edit-form-group"><label>Title</label>
+                            <input type="text" id="edit-title-${task.id}" value="${esc(task.title)}" /></div>
+                        <div class="edit-form-group"><label>Description (use "- " for bullets)</label>
+                            <textarea id="edit-desc-${task.id}" rows="3">${esc(task.description)}</textarea></div>
+                        <div class="edit-form-group"><label>Category</label>
+                            <select id="edit-cat-${task.id}">
+                                <option value="Church"   ${task.category==='Church'   ? 'selected':''}>Church</option>
+                                <option value="Business" ${task.category==='Business' ? 'selected':''}>Business</option>
+                                <option value="Personal" ${task.category==='Personal' ? 'selected':''}>Personal</option>
+                            </select></div>
+                        <div class="edit-form-group"><label>Due Date (optional)</label>
+                            <input type="date" id="edit-due-${task.id}" value="${task.dueDate||''}" /></div>
+                        <div class="edit-actions">
+                            <button class="btn-secondary" onclick="cancelEdit(event)">
+                                <span class="icon">${icons.close}</span> Cancel</button>
+                            <button class="btn-save" onclick="saveEdit(${task.id})">
+                                <span class="icon">${icons.save}</span> Save</button>
+                        </div>
+                    </div></div>`;
+                } else {
+                    const due = formatDueDate(task.dueDate);
+                    html += `<div class="task-content" onclick="startEdit(${task.id}, event)">
+                        <div class="task-header">
+                            <button class="task-checkbox" onclick="toggleComplete(${task.id}, event)">
+                                <span class="icon" style="color:${task.completed?'#16a34a':'#9ca3af'}">
+                                    ${task.completed ? icons.checkCircle : icons.circle}</span></button>
+                            <span class="task-title ${task.completed?'completed':''}">${esc(task.title)}</span>
+                            <span class="task-badge ${catClass}">${category}</span>
+                        </div>
+                        ${task.description ? renderDescription(task.description) : ''}
+                        <div class="task-footer">
+                            <div>
+                                <p class="task-date">Added ${task.createdAt}</p>
+                                ${due ? `<p class="task-due-date ${due.isOverdue?'overdue':''}">${due.text}</p>` : ''}
+                            </div>
+                            <div class="task-actions">
+                                <button class="task-action-btn priority ${task.priority?'active':''}" onclick="togglePriority(${task.id},event)" title="Mark urgent">
+                                    <span class="icon">${task.priority?icons.star:icons.starOutline}</span></button>
+                                <span class="icon" style="color:#9ca3af;width:16px;height:16px">${icons.edit}</span>
+                                <button class="task-action-btn delete" onclick="deleteTask(${task.id},event)">
+                                    <span class="icon">${icons.trash}</span></button>
+                            </div>
+                        </div>
+                    </div>`;
+                }
+                html += `</div>`;
+            });
+            html += `</div>`;
+        }
+        html += `</div>`;
+    });
+    container.innerHTML = html;
+}
+
+// ============================================================
+// PERIOD TRACKER
+// ============================================================
+async function loadPeriodData() {
+    try {
+        periodEntries = await apiGet('period');
+        if (!Array.isArray(periodEntries)) periodEntries = [];
+    } catch (e) {
+        showToast('Could not load period data', true);
+        periodEntries = [];
+    }
+    renderPeriodTracker();
+}
+
+async function addPeriodEntry() {
+    const date = document.getElementById('periodDateInput').value;
+    if (!date) { showToast('Please select a date', true); return; }
+    if (periodEntries.some(e => e && e.date === date)) { showToast('Date already logged', true); return; }
+
+    const btn = document.getElementById('logPeriodBtn');
+    btn.disabled = true; btn.textContent = '…Saving';
+
+    periodEntries.push({ date });
+    periodEntries.sort((a, b) => new Date(b.date) - new Date(a.date));
+    renderPeriodTracker();
+
+    try {
+        await apiPost('period', periodEntries);
+        showToast('Period logged ✓');
+    } catch (e) {
+        showToast('Save failed', true);
+    }
+
+    document.getElementById('periodDateInput').value = '';
+    btn.disabled = false; btn.textContent = '➕ Log Period';
+}
+
+async function deletePeriodEntry(date) {
+    if (!confirm('Delete this period entry?')) return;
+    periodEntries = periodEntries.filter(e => e && e.date !== date);
+    renderPeriodTracker();
+    try {
+        await apiPost('period', periodEntries);
+        showToast('Deleted ✓');
+    } catch (e) {
+        showToast('Delete failed', true);
+    }
+}
+
+function calculateAverageCycle(entries) {
+    if (!entries || entries.length < 2) return 28;
+    const cycles = [];
+    for (let i = 0; i < entries.length - 1; i++) {
+        if (!entries[i]?.date || !entries[i+1]?.date) continue;
+        const diff = Math.round((new Date(entries[i].date) - new Date(entries[i+1].date)) / 86400000);
+        if (diff > 0 && diff < 60) cycles.push(diff);
+    }
+    if (!cycles.length) return 28;
+    return Math.round(cycles.reduce((a,b)=>a+b,0) / cycles.length);
+}
+
+function renderPeriodTracker() {
+    const valid = periodEntries.filter(e => e?.date);
+    const showStats = valid.length > 0;
+
+    document.getElementById('periodStatsContainer').style.display  = showStats ? 'grid' : 'none';
+    document.getElementById('periodPredictionCard').style.display  = showStats ? 'block' : 'none';
+    document.getElementById('historyCard').style.display           = showStats ? 'block' : 'none';
+    document.getElementById('periodEmptyState').style.display      = showStats ? 'none'  : 'block';
+    if (!showStats) return;
+
+    const avgCycle    = calculateAverageCycle(valid);
+    const lastDate    = new Date(valid[0].date);
+    const today       = new Date();
+    const nextPeriod  = new Date(lastDate);
+    nextPeriod.setDate(nextPeriod.getDate() + avgCycle);
+    const daysUntil   = Math.ceil((nextPeriod - today) / 86400000);
+
+    document.getElementById('avgCycleDisplay').textContent    = avgCycle;
+    document.getElementById('totalLogsDisplay').textContent   = valid.length;
+
+    const dEl = document.getElementById('daysUntilNextDisplay');
+    dEl.textContent = daysUntil <= 0 ? 'Today' : daysUntil;
+    dEl.style.color = daysUntil <= 0 ? '#dc2626' : daysUntil <= 7 ? '#ea580c' : '#1e293b';
+
+    document.getElementById('nextPeriodPrediction').textContent =
+        nextPeriod.toLocaleDateString('en-US',{weekday:'short',year:'numeric',month:'short',day:'numeric'});
+    document.getElementById('nextPeriodDaysUntil').textContent =
+        daysUntil <= 0 ? 'Your period should be here! 🩸' : `Expected in ${daysUntil} days`;
+
+    let html = '';
+    valid.forEach((entry, idx) => {
+        const entryDate = new Date(entry.date);
+        const formatted = entryDate.toLocaleDateString('en-US',{weekday:'short',year:'numeric',month:'short',day:'numeric'});
+        let cycleInfo = 'First entry';
+        if (idx < valid.length - 1 && valid[idx+1]?.date) {
+            const diff = Math.round((entryDate - new Date(valid[idx+1].date)) / 86400000);
+            cycleInfo = `${diff} day cycle`;
+        }
+        html += `<div class="period-history-item">
+            <div>
+                <div class="period-history-date">${formatted}</div>
+                <div class="period-history-cycle">${cycleInfo}</div>
+            </div>
+            <button class="period-delete-btn" onclick="deletePeriodEntry('${entry.date}')">🗑️</button>
+        </div>`;
+    });
+    document.getElementById('periodHistoryList').innerHTML = html;
+}
+
+// ============================================================
+// Tab switcher
+// ============================================================
+function switchTab(tabName, event) {
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-button').forEach(b => b.classList.remove('active'));
+    document.getElementById(tabName).classList.add('active');
+    event.target.classList.add('active');
+}
+
+// ============================================================
+// Init
+// ============================================================
+document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('taskTitle').addEventListener('keypress', e => {
+        if (e.key === 'Enter') addTask();
+    });
+    loadTasks();
+    loadPeriodData();
+});
+</script>
+</body>
+</html>
