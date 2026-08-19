@@ -55,14 +55,36 @@ function readSheet(name, headers) {
   const sheet = getOrCreateSheet(name, headers);
   const rows  = sheet.getDataRange().getValues();
   if (rows.length <= 1) return [];
-  const head = rows[0];
-  return rows.slice(1).map(row => {
-    const obj = {};
-    head.forEach((col, i) => { obj[col] = row[i] === '' ? null : row[i]; });
-    if ('completed' in obj) obj.completed = obj.completed === true || obj.completed === 'true';
-    if ('priority'  in obj) obj.priority  = obj.priority  === true || obj.priority  === 'true';
-    return obj;
-  });
+
+  // Trim whitespace from header row
+  const head = rows[0].map(h => String(h).trim());
+
+  return rows.slice(1)
+    .filter(row => row.some(cell => cell !== ''))
+    .map(row => {
+      const obj = {};
+      head.forEach((col, i) => {
+        obj[col] = row[i] === '' ? null : row[i];
+      });
+
+      // Robust boolean parsing
+      if ('completed' in obj) {
+        obj.completed = obj.completed === true || String(obj.completed).toLowerCase() === 'true';
+      }
+      if ('priority' in obj) {
+        obj.priority = obj.priority === true || String(obj.priority).toLowerCase() === 'true';
+      }
+
+      // Normalise category casing
+      if (obj.category) {
+        const cat = String(obj.category).trim().toLowerCase();
+        if      (cat === 'church')   obj.category = 'Church';
+        else if (cat === 'business') obj.category = 'Business';
+        else if (cat === 'personal') obj.category = 'Personal';
+      }
+
+      return obj;
+    });
 }
 
 function writeSheet(name, headers, data) {
