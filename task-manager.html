@@ -371,7 +371,7 @@
 // ============================================================
 // CONFIG — paste your deployed Apps Script URL here
 // ============================================================
-const API_URL = 'https://script.google.com/macros/s/AKfycbyR3Fs2T-PpgP7DWiaJ-sQQUIoO27z9w9Vnp0QMelM8wCC76ho9ct5_c0Eawea2rrsT/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbwYDUxx7oclQ1jwoObj4VBQXj3GzESzeiq4XWslBadeuYcTgjvb2A8Rm2dR-pvL6Nx5/exec';
 
 // ============================================================
 // State
@@ -420,6 +420,16 @@ function setSaving(show) {
 async function loadTasks() {
     try {
         tasks = await apiGet('tasks');
+        // Normalise category casing in case sheet has inconsistent values
+        tasks = tasks.map(t => {
+            if (t && t.category) {
+                const c = String(t.category).trim().toLowerCase();
+                if      (c === 'church')   t.category = 'Church';
+                else if (c === 'business') t.category = 'Business';
+                else if (c === 'personal') t.category = 'Personal';
+            }
+            return t;
+        });
     } catch (e) {
         showToast('Could not load tasks — check your API URL', true);
         tasks = [];
