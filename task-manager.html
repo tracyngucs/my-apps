@@ -468,7 +468,7 @@ async function addTask() {
         description,
         notes:       notes || '',
         category,
-        dueDate:     dueDate || '',
+        dueDate:     toStorageDate(dueDate),
         priority:    false,
         completed:   false,
         createdAt:   new Date().toLocaleDateString('en-GB').replace(/\//g, '-')
@@ -519,7 +519,7 @@ async function saveEdit(id) {
         t.description = document.getElementById(`edit-desc-${id}`).value.trim();
         t.notes       = document.getElementById(`edit-notes-${id}`).value.trim();
         t.category    = document.getElementById(`edit-cat-${id}`).value;
-        t.dueDate     = document.getElementById(`edit-due-${id}`).value;
+        t.dueDate     = toStorageDate(document.getElementById(`edit-due-${id}`).value);
         editingId = null;
         renderTasks();
         await saveTasks();
@@ -585,9 +585,33 @@ function renderDescription(description) {
     return html;
 }
 
+// Convert YYYY-MM-DD (from date input) to DD-MM-YYYY (for storage)
+function toStorageDate(val) {
+    if (!val) return '';
+    if (/^\d{2}-\d{2}-\d{4}$/.test(val)) return val; // already DD-MM-YYYY
+    const [y, m, d] = val.split('-');
+    return `${d}-${m}-${y}`;
+}
+
+// Convert DD-MM-YYYY (from storage) to YYYY-MM-DD (for date input value)
+function toInputDate(val) {
+    if (!val) return '';
+    if (/^\d{4}-\d{2}-\d{2}$/.test(val)) return val; // already YYYY-MM-DD
+    const [d, m, y] = val.split('-');
+    return `${y}-${m}-${d}`;
+}
+
 function formatDueDate(dueDate) {
     if (!dueDate) return null;
-    const date  = new Date(dueDate + 'T00:00:00');
+    // Parse DD-MM-YYYY or YYYY-MM-DD safely
+    let date;
+    if (/^\d{2}-\d{2}-\d{4}$/.test(dueDate)) {
+        const [d, m, y] = dueDate.split('-');
+        date = new Date(`${y}-${m}-${d}T00:00:00`);
+    } else {
+        date = new Date(dueDate + 'T00:00:00');
+    }
+    if (isNaN(date.getTime())) return null;
     const today = new Date(); today.setHours(0,0,0,0);
     return { text: `Due ${date.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})}`, isOverdue: date < today };
 }
@@ -647,7 +671,7 @@ function renderTasks() {
                                 <option value="Personal" ${task.category==='Personal' ? 'selected':''}>Personal</option>
                             </select></div>
                         <div class="edit-form-group"><label>Due Date (optional)</label>
-                            <input type="date" id="edit-due-${task.id}" value="${task.dueDate||''}" /></div>
+                            <input type="date" id="edit-due-${task.id}" value="${toInputDate(task.dueDate||'')}" /></div>
                         <div class="edit-actions">
                             <button class="btn-secondary" onclick="cancelEdit(event)">
                                 <span class="icon">${icons.close}</span> Cancel</button>
