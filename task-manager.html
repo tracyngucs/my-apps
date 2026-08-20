@@ -471,7 +471,7 @@ async function addTask() {
         dueDate:     dueDate || '',
         priority:    false,
         completed:   false,
-        createdAt:   new Date().toLocaleDateString()
+        createdAt:   new Date().toLocaleDateString('en-GB').replace(/\//g, '-')
     };
     tasks.push(task);
     renderTasks();
