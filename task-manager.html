@@ -420,7 +420,7 @@ function setSaving(show) {
 async function loadTasks() {
     try {
         tasks = await apiGet('tasks');
-        // Normalise category casing in case sheet has inconsistent values
+        // Normalise category casing and date formats in case sheet has inconsistent values
         tasks = tasks.map(t => {
             if (t && t.category) {
                 const c = String(t.category).trim().toLowerCase();
@@ -428,6 +428,8 @@ async function loadTasks() {
                 else if (c === 'business') t.category = 'Business';
                 else if (c === 'personal') t.category = 'Personal';
             }
+            if (t && t.dueDate)   t.dueDate   = formatDMY(t.dueDate);
+            if (t && t.createdAt) t.createdAt = formatDMY(t.createdAt) || t.createdAt;
             return t;
         });
     } catch (e) {
@@ -585,14 +587,40 @@ function renderDescription(description) {
     return html;
 }
 
-// Parse DD-MM-YYYY or YYYY-MM-DD into a Date object
+// Parse DD-MM-YYYY, YYYY-MM-DD, ISO strings, or anything else Sheets might return
 function parseDMY(val) {
-    if (!val) return new Date('');
-    if (/^\d{2}-\d{2}-\d{4}$/.test(val)) {
-        const [d, m, y] = val.split('-');
-        return new Date(`${y}-${m}-${d}T00:00:00`);
+    if (!val) return null;
+    if (val instanceof Date) return isNaN(val.getTime()) ? null : val;
+
+    const str = String(val).trim();
+
+    // DD-MM-YYYY or DD/MM/YYYY
+    let m = str.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})$/);
+    if (m) {
+        const d = new Date(`${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}T00:00:00`);
+        return isNaN(d.getTime()) ? null : d;
     }
-    return new Date(val + 'T00:00:00');
+
+    // YYYY-MM-DD or ISO string
+    m = str.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+    if (m) {
+        const d = new Date(`${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}T00:00:00`);
+        return isNaN(d.getTime()) ? null : d;
+    }
+
+    // Fallback — let JS try
+    const d = new Date(str);
+    return isNaN(d.getTime()) ? null : d;
+}
+
+// Format a Date object (or parseable value) as DD-MM-YYYY text
+function formatDMY(val) {
+    const d = parseDMY(val);
+    if (!d) return '';
+    const dd = String(d.getDate()).padStart(2,'0');
+    const mm = String(d.getMonth()+1).padStart(2,'0');
+    const yyyy = d.getFullYear();
+    return `${dd}-${mm}-${yyyy}`;
 }
 
 // Convert YYYY-MM-DD (from date input) to DD-MM-YYYY (for storage)
@@ -607,21 +635,18 @@ function toStorageDate(val) {
 function toInputDate(val) {
     if (!val) return '';
     if (/^\d{4}-\d{2}-\d{2}$/.test(val)) return val; // already YYYY-MM-DD
-    const [d, m, y] = val.split('-');
-    return `${y}-${m}-${d}`;
+    const d = parseDMY(val);
+    if (!d) return '';
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth()+1).padStart(2,'0');
+    const dd = String(d.getDate()).padStart(2,'0');
+    return `${yyyy}-${mm}-${dd}`;
 }
 
 function formatDueDate(dueDate) {
     if (!dueDate) return null;
-    // Parse DD-MM-YYYY or YYYY-MM-DD safely
-    let date;
-    if (/^\d{2}-\d{2}-\d{4}$/.test(dueDate)) {
-        const [d, m, y] = dueDate.split('-');
-        date = new Date(`${y}-${m}-${d}T00:00:00`);
-    } else {
-        date = new Date(dueDate + 'T00:00:00');
-    }
-    if (isNaN(date.getTime())) return null;
+    const date = parseDMY(dueDate);
+    if (!date) return null;
     const today = new Date(); today.setHours(0,0,0,0);
     return { text: `Due ${date.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})}`, isOverdue: date < today };
 }
@@ -743,6 +768,10 @@ async function loadPeriodData() {
     try {
         periodEntries = await apiGet('period');
         if (!Array.isArray(periodEntries)) periodEntries = [];
+        // Normalise every date to DD-MM-YYYY text, drop anything unparseable
+        periodEntries = periodEntries
+            .map(e => e && e.date ? { ...e, date: formatDMY(e.date) } : null)
+            .filter(e => e && e.date);
     } catch (e) {
         showToast('Could not load period data', true);
         periodEntries = [];
