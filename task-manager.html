@@ -2,8 +2,14 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>My Apps</title>
+    <!-- iOS "Add to Home Screen" support -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="My Apps">
+    <meta name="mobile-web-app-capable" content="yes">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%232563eb'/%3E%3Ctext x='50' y='68' font-size='58' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif'%3E%E2%9C%93%3C/text%3E%3C/svg%3E">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -11,10 +17,12 @@
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: linear-gradient(to bottom right, #f8fafc, #f1f5f9);
             min-height: 100vh;
+            min-height: 100dvh;
             color: #1e293b;
+            -webkit-tap-highlight-color: transparent;
         }
 
-        .app-container { display: flex; height: 100vh; }
+        .app-container { display: flex; height: 100vh; height: 100dvh; }
 
         /* Sidebar */
         .sidebar {
@@ -34,10 +42,79 @@
         .tab-button.active { background: #2563eb; color: white; }
 
         /* Main */
-        .main-content { flex: 1; overflow-y: auto; padding: 24px; }
+        .main-content { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 24px; padding-bottom: calc(24px + env(safe-area-inset-bottom)); }
         .tab-content { display: none; width: 100%; }
         .tab-content.active { display: block; }
         .container { max-width: 42rem; margin: 0 auto; }
+
+        /* ============================================================
+           MOBILE — iPhone / narrow screens
+           Sidebar becomes a fixed bottom tab bar
+        ============================================================ */
+        @media (max-width: 700px) {
+            .app-container {
+                flex-direction: column;
+                height: 100vh;
+                height: 100dvh;
+            }
+
+            .sidebar {
+                order: 2;
+                width: 100%;
+                flex-shrink: 0;
+                padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
+                border-right: none;
+                border-top: 1px solid #e2e8f0;
+                box-shadow: 0 -2px 8px rgba(0,0,0,0.05);
+            }
+            .sidebar-header { display: none; }
+            .tab-nav { flex-direction: row; gap: 4px; }
+            .tab-button {
+                flex: 1;
+                text-align: center;
+                padding: 10px 4px;
+                font-size: 0.78rem;
+                border-radius: 10px;
+                white-space: nowrap;
+            }
+
+            .main-content {
+                order: 1;
+                padding: 16px 14px calc(16px + env(safe-area-inset-top));
+                padding-top: calc(16px + env(safe-area-inset-top));
+            }
+
+            .container { max-width: 100%; }
+
+            h1 { font-size: 1.6rem; }
+            .subtitle { font-size: 0.85rem; }
+
+            .stats { grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 20px; }
+            .stat-card { padding: 10px; }
+            .stat-number { font-size: 1.4rem; margin-bottom: 2px; }
+            .stat-label { font-size: 0.68rem; }
+
+            .form-card { padding: 16px; margin-bottom: 20px; }
+            .form-card h2 { font-size: 1rem; }
+
+            /* Bigger touch targets */
+            input[type="text"], input[type="date"], input[type="number"], textarea, select {
+                font-size: 16px; /* prevents iOS auto-zoom on focus */
+                padding: 12px 14px;
+            }
+            .btn-primary { padding: 14px 16px; font-size: 1rem; }
+            .filter-btn { padding: 10px 14px; font-size: 0.9rem; }
+            .task-checkbox { padding: 8px; }
+            .task-action-btn { padding: 8px; }
+            .link-btn { padding: 10px; }
+            .drag-handle { padding: 8px 6px; font-size: 1.3rem; }
+
+            .filters { gap: 6px; }
+            .task-content { padding: 14px; }
+            .task-title { font-size: 0.95rem; }
+
+            .toast { left: 16px; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom)); text-align: center; }
+        }
 
         /* Header */
         header { margin-bottom: 32px; }
@@ -1052,13 +1129,35 @@ function switchTab(tabName, event) {
 // ============================================================
 // Init
 // ============================================================
+function refreshAllData() {
+    loadTasks();
+    loadPeriodData();
+    loadLinks();
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('taskTitle').addEventListener('keypress', e => {
         if (e.key === 'Enter') addTask();
     });
-    loadTasks();
-    loadPeriodData();
-    loadLinks();
+    refreshAllData();
+});
+
+// Refresh whenever the app becomes visible again —
+// e.g. reopening from the home screen, switching back from another app,
+// or waking the phone screen. No background polling, no extra quota use
+// while you're not looking at it.
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+        refreshAllData();
+    }
+});
+
+// iOS Safari sometimes restores the page from its "back-forward cache"
+// without firing DOMContentLoaded — this catches that case too.
+window.addEventListener('pageshow', (event) => {
+    if (event.persisted) {
+        refreshAllData();
+    }
 });
 </script>
 </body>
