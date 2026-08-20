@@ -52,6 +52,8 @@ function getOrCreateSheet(name, headers) {
 }
 
 function readSheet(name, headers) {
+  const ss    = SpreadsheetApp.openById(SHEET_ID);
+  const tz    = ss.getSpreadsheetTimeZone(); // use the SHEET's timezone, not the script's
   const sheet = getOrCreateSheet(name, headers);
   const rows  = sheet.getDataRange().getValues();
   if (rows.length <= 1) return [];
@@ -64,15 +66,13 @@ function readSheet(name, headers) {
       const obj = {};
       head.forEach((col, i) => {
         let val = row[i];
-        // Convert date objects to DD-MM-YYYY string
+        // Convert any Date objects using the SPREADSHEET's timezone
+        // (not the script's default timezone) to avoid day-shift bugs
         if (val instanceof Date) {
           if (isNaN(val.getTime()) || val.getFullYear() < 1900) {
             val = '';
           } else {
-            const dd = String(val.getDate()).padStart(2,'0');
-            const mm = String(val.getMonth()+1).padStart(2,'0');
-            const yyyy = val.getFullYear();
-            val = `${dd}-${mm}-${yyyy}`;
+            val = Utilities.formatDate(val, tz, 'dd-MM-yyyy');
           }
         }
         obj[col] = val === '' ? null : val;
@@ -103,7 +103,12 @@ function writeSheet(name, headers, data) {
     const v = item[h];
     return v === undefined || v === null ? '' : v;
   }));
-  sheet.getRange(2, 1, rows.length, headers.length).setValues(rows);
+  const range = sheet.getRange(2, 1, rows.length, headers.length);
+  // Force plain-text formatting so Sheets never auto-converts
+  // date-like strings (e.g. "17-08-2026") into its own Date value —
+  // that auto-conversion was the root cause of the day-shift bug.
+  range.setNumberFormat('@');
+  range.setValues(rows);
 }
 
 function respond(payload) {
