@@ -56,7 +56,6 @@ function readSheet(name, headers) {
   const rows  = sheet.getDataRange().getValues();
   if (rows.length <= 1) return [];
 
-  // Trim whitespace from header row
   const head = rows[0].map(h => String(h).trim());
 
   return rows.slice(1)
@@ -64,18 +63,27 @@ function readSheet(name, headers) {
     .map(row => {
       const obj = {};
       head.forEach((col, i) => {
-        obj[col] = row[i] === '' ? null : row[i];
+        let val = row[i];
+        // Convert date objects to DD-MM-YYYY string
+        if (val instanceof Date) {
+          if (isNaN(val.getTime()) || val.getFullYear() < 1900) {
+            val = '';
+          } else {
+            const dd = String(val.getDate()).padStart(2,'0');
+            const mm = String(val.getMonth()+1).padStart(2,'0');
+            const yyyy = val.getFullYear();
+            val = `${dd}-${mm}-${yyyy}`;
+          }
+        }
+        obj[col] = val === '' ? null : val;
       });
 
-      // Robust boolean parsing
       if ('completed' in obj) {
         obj.completed = obj.completed === true || String(obj.completed).toLowerCase() === 'true';
       }
       if ('priority' in obj) {
         obj.priority = obj.priority === true || String(obj.priority).toLowerCase() === 'true';
       }
-
-      // Normalise category casing
       if (obj.category) {
         const cat = String(obj.category).trim().toLowerCase();
         if      (cat === 'church')   obj.category = 'Church';
