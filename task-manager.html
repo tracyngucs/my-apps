@@ -293,6 +293,30 @@
         .task-notes-panel.open { display: block; }
         .notes-chevron { margin-left: auto; transition: transform 0.2s; font-style: normal; }
         .task-notes-toggle.open .notes-chevron { transform: rotate(180deg); }
+
+        .task-notes-row {
+            display: flex; align-items: center; border-top: 1px solid rgba(0,0,0,0.06);
+        }
+        .task-notes-row .task-notes-toggle { border-top: none; flex: 1; }
+        .notes-edit-btn {
+            background: none; border: none; cursor: pointer; color: #9ca3af;
+            padding: 7px 14px 7px 4px; display: flex; align-items: center;
+            transition: color 0.15s;
+        }
+        .notes-edit-btn:hover { color: #2563eb; }
+        .notes-edit-btn .icon { width: 15px; height: 15px; }
+
+        .task-notes-edit {
+            padding: 12px 16px 14px; border-top: 1px solid rgba(0,0,0,0.06);
+            background: rgba(255,255,255,0.5);
+        }
+        .task-notes-edit textarea {
+            width: 100%; min-height: 90px; padding: 8px 12px;
+            border: 1px solid #cbd5e1; border-radius: 8px;
+            font-family: inherit; font-size: 0.875rem; resize: vertical;
+        }
+        .task-notes-edit textarea:focus { outline: none; box-shadow: 0 0 0 2px #3b82f6; border-color: transparent; }
+        .task-notes-edit-actions { display: flex; gap: 6px; justify-content: flex-end; margin-top: 8px; }
     </style>
 </head>
 <body>
@@ -461,6 +485,7 @@ let tasks         = [];
 let periodEntries = [];
 let currentFilter = 'all';
 let editingId     = null;
+let editingNotesId = null;
 
 // ============================================================
 // API helpers
@@ -607,7 +632,6 @@ async function saveEdit(id) {
     if (t) {
         t.title       = document.getElementById(`edit-title-${id}`).value.trim() || t.title;
         t.description = document.getElementById(`edit-desc-${id}`).value.trim();
-        t.notes       = document.getElementById(`edit-notes-${id}`).value.trim();
         t.category    = document.getElementById(`edit-cat-${id}`).value;
         t.dueDate     = toStorageDate(document.getElementById(`edit-due-${id}`).value);
         editingId = null;
@@ -623,6 +647,32 @@ function toggleNotes(id, event) {
     const isOpen = panel.classList.contains('open');
     panel.classList.toggle('open', !isOpen);
     toggle.classList.toggle('open', !isOpen);
+}
+
+function startEditNotes(id, event) {
+    event.stopPropagation();
+    editingNotesId = id;
+    renderTasks();
+    setTimeout(() => {
+        const el = document.getElementById(`notes-edit-${id}`);
+        if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); }
+    }, 50);
+}
+
+function cancelEditNotes(event) {
+    event.stopPropagation();
+    editingNotesId = null;
+    renderTasks();
+}
+
+async function saveEditNotes(id) {
+    const t = tasks.find(t => t.id == id);
+    if (t) {
+        t.notes = document.getElementById(`notes-edit-${id}`).value.trim();
+        editingNotesId = null;
+        renderTasks();
+        await saveTasks();
+    }
 }
 
 function cancelEdit(event) {
@@ -787,8 +837,6 @@ function renderTasks() {
                             <input type="text" id="edit-title-${task.id}" value="${esc(task.title)}" /></div>
                         <div class="edit-form-group"><label>Description (use "- " for bullets)</label>
                             <textarea id="edit-desc-${task.id}" rows="3">${esc(task.description)}</textarea></div>
-                        <div class="edit-form-group"><label>Notes (hidden until tapped)</label>
-                            <textarea id="edit-notes-${task.id}" rows="3" placeholder="Extra details, references, anything lengthy…">${esc(task.notes||'')}</textarea></div>
                         <div class="edit-form-group"><label>Category</label>
                             <select id="edit-cat-${task.id}">
                                 <option value="Church"   ${task.category==='Church'   ? 'selected':''}>Church</option>
@@ -832,16 +880,29 @@ function renderTasks() {
                             </div>
                         </div>
                     </div>
-                    ${hasNotes ? `
-                    <button class="task-notes-toggle has-notes" id="notes-toggle-${task.id}" onclick="toggleNotes(${task.id}, event)">
-                        📋 Notes <i class="notes-chevron">▾</i>
-                    </button>
+                    ${editingNotesId == task.id ? `
+                    <div class="task-notes-edit" onclick="event.stopPropagation()">
+                        <textarea id="notes-edit-${task.id}" placeholder="Type your notes…">${esc(task.notes||'')}</textarea>
+                        <div class="task-notes-edit-actions">
+                            <button class="btn-secondary" onclick="cancelEditNotes(event)">
+                                <span class="icon">${icons.close}</span> Cancel</button>
+                            <button class="btn-save" onclick="saveEditNotes(${task.id})">
+                                <span class="icon">${icons.save}</span> Save</button>
+                        </div>
+                    </div>
+                    ` : hasNotes ? `
+                    <div class="task-notes-row">
+                        <button class="task-notes-toggle has-notes" id="notes-toggle-${task.id}" onclick="toggleNotes(${task.id}, event)">
+                            📋 Notes <i class="notes-chevron">▾</i>
+                        </button>
+                        <button class="notes-edit-btn" onclick="startEditNotes(${task.id}, event)" title="Edit notes">
+                            <span class="icon">${icons.edit}</span></button>
+                    </div>
                     <div class="task-notes-panel" id="notes-panel-${task.id}">${esc(task.notes)}</div>
                     ` : `
-                    <button class="task-notes-toggle" id="notes-toggle-${task.id}" onclick="toggleNotes(${task.id}, event)">
-                        + Add notes <i class="notes-chevron">▾</i>
+                    <button class="task-notes-toggle" onclick="startEditNotes(${task.id}, event)">
+                        + Add notes
                     </button>
-                    <div class="task-notes-panel" id="notes-panel-${task.id}"><em style="color:#94a3b8">No notes yet — tap the edit icon to add some.</em></div>
                     `}`;
                 }
                 html += `</div>`;
