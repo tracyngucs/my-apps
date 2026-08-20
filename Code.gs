@@ -4,7 +4,7 @@ const TASKS_SHEET    = 'Tasks';
 const PERIOD_SHEET   = 'PeriodEntries';
 const LINKS_SHEET    = 'Links';
 
-const TASK_HEADERS   = ['id','title','description','notes','category','dueDate','priority','completed','createdAt'];
+const TASK_HEADERS   = ['id','title','description','notes','category','dueDate','priority','weekly','completed','createdAt'];
 const PERIOD_HEADERS = ['date'];
 const LINKS_HEADERS  = ['id','label','url','createdAt'];
 
@@ -83,6 +83,9 @@ function readSheet(name, headers) {
       }
       if ('priority' in obj) {
         obj.priority = obj.priority === true || String(obj.priority).toLowerCase() === 'true';
+      }
+      if ('weekly' in obj) {
+        obj.weekly = obj.weekly === true || String(obj.weekly).toLowerCase() === 'true';
       }
       if (obj.category) {
         const cat = String(obj.category).trim().toLowerCase();
