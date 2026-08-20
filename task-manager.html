@@ -589,7 +589,7 @@ function formatDueDate(dueDate) {
     if (!dueDate) return null;
     const date  = new Date(dueDate + 'T00:00:00');
     const today = new Date(); today.setHours(0,0,0,0);
-    return { text: `Due ${date.toLocaleDateString('en-US',{month:'short',day:'numeric'})}`, isOverdue: date < today };
+    return { text: `Due ${date.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})}`, isOverdue: date < today };
 }
 
 function esc(text) {
@@ -788,14 +788,14 @@ function renderPeriodTracker() {
     dEl.style.color = daysUntil <= 0 ? '#dc2626' : daysUntil <= 7 ? '#ea580c' : '#1e293b';
 
     document.getElementById('nextPeriodPrediction').textContent =
-        nextPeriod.toLocaleDateString('en-US',{weekday:'short',year:'numeric',month:'short',day:'numeric'});
+        nextPeriod.toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short',year:'numeric'});
     document.getElementById('nextPeriodDaysUntil').textContent =
         daysUntil <= 0 ? 'Your period should be here! 🩸' : `Expected in ${daysUntil} days`;
 
     let html = '';
     valid.forEach((entry, idx) => {
         const entryDate = new Date(entry.date);
-        const formatted = entryDate.toLocaleDateString('en-US',{weekday:'short',year:'numeric',month:'short',day:'numeric'});
+        const formatted = entryDate.toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short',year:'numeric'});
         let cycleInfo = 'First entry';
         if (idx < valid.length - 1 && valid[idx+1]?.date) {
             const diff = Math.round((entryDate - new Date(valid[idx+1].date)) / 86400000);
@@ -840,7 +840,7 @@ async function addLink() {
     const btn = document.getElementById('addLinkBtn');
     btn.disabled = true; btn.textContent = '…Saving';
 
-    links.unshift({ id: Date.now(), label, url, createdAt: new Date().toLocaleDateString() });
+    links.unshift({ id: Date.now(), label, url, createdAt: new Date().toLocaleDateString('en-GB').replace(/\//g, '-') });
     renderLinks();
     try { await apiPost('links', links); showToast('Link saved ✓'); }
     catch (e) { showToast('Save failed', true); }
