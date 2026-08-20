@@ -585,6 +585,16 @@ function renderDescription(description) {
     return html;
 }
 
+// Parse DD-MM-YYYY or YYYY-MM-DD into a Date object
+function parseDMY(val) {
+    if (!val) return new Date('');
+    if (/^\d{2}-\d{2}-\d{4}$/.test(val)) {
+        const [d, m, y] = val.split('-');
+        return new Date(`${y}-${m}-${d}T00:00:00`);
+    }
+    return new Date(val + 'T00:00:00');
+}
+
 // Convert YYYY-MM-DD (from date input) to DD-MM-YYYY (for storage)
 function toStorageDate(val) {
     if (!val) return '';
@@ -741,7 +751,7 @@ async function loadPeriodData() {
 }
 
 async function addPeriodEntry() {
-    const date = document.getElementById('periodDateInput').value;
+    const date = toStorageDate(document.getElementById('periodDateInput').value);
     if (!date) { showToast('Please select a date', true); return; }
     if (periodEntries.some(e => e && e.date === date)) { showToast('Date already logged', true); return; }
 
@@ -749,7 +759,7 @@ async function addPeriodEntry() {
     btn.disabled = true; btn.textContent = '…Saving';
 
     periodEntries.push({ date });
-    periodEntries.sort((a, b) => new Date(b.date) - new Date(a.date));
+    periodEntries.sort((a, b) => parseDMY(b.date) - parseDMY(a.date));
     renderPeriodTracker();
 
     try {
@@ -780,7 +790,7 @@ function calculateAverageCycle(entries) {
     const cycles = [];
     for (let i = 0; i < entries.length - 1; i++) {
         if (!entries[i]?.date || !entries[i+1]?.date) continue;
-        const diff = Math.round((new Date(entries[i].date) - new Date(entries[i+1].date)) / 86400000);
+        const diff = Math.round((parseDMY(entries[i].date) - parseDMY(entries[i+1].date)) / 86400000);
         if (diff > 0 && diff < 60) cycles.push(diff);
     }
     if (!cycles.length) return 28;
@@ -798,7 +808,7 @@ function renderPeriodTracker() {
     if (!showStats) return;
 
     const avgCycle    = calculateAverageCycle(valid);
-    const lastDate    = new Date(valid[0].date);
+    const lastDate    = parseDMY(valid[0].date);
     const today       = new Date();
     const nextPeriod  = new Date(lastDate);
     nextPeriod.setDate(nextPeriod.getDate() + avgCycle);
@@ -818,11 +828,11 @@ function renderPeriodTracker() {
 
     let html = '';
     valid.forEach((entry, idx) => {
-        const entryDate = new Date(entry.date);
+        const entryDate = parseDMY(entry.date);
         const formatted = entryDate.toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short',year:'numeric'});
         let cycleInfo = 'First entry';
         if (idx < valid.length - 1 && valid[idx+1]?.date) {
-            const diff = Math.round((entryDate - new Date(valid[idx+1].date)) / 86400000);
+            const diff = Math.round((entryDate - parseDMY(valid[idx+1].date)) / 86400000);
             cycleInfo = `${diff} day cycle`;
         }
         html += `<div class="period-history-item">
