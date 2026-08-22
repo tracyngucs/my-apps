@@ -249,7 +249,7 @@
         .period-history-item { display: flex; align-items: center; justify-content: space-between; padding: 12px; background: #f8fafc; border-radius: 8px; border-left: 4px solid #fcd34d; }
         .period-history-date { font-weight: 600; color: #1e293b; }
         .period-history-cycle { font-size: 0.875rem; color: #64748b; }
-        .period-delete-btn { background: none; border: none; color: #9ca3af; cursor: pointer; padding: 4px 8px; transition: color 0.2s; font-size: 1rem; }
+        .period-delete-btn { background: none; border: none; color: #9ca3af; cursor: pointer; padding: 4px 8px; transition: color 0.2s; font-size: 1rem; display: inline-flex; align-items: center; justify-content: center; }
         .period-delete-btn:hover { color: #dc2626; }
 
         small { font-size: 0.75rem; color: #64748b; }
@@ -1178,7 +1178,7 @@ function renderPeriodTracker() {
                 <div class="period-history-date">${formatted}</div>
                 <div class="period-history-cycle">${cycleInfo}</div>
             </div>
-            <button class="period-delete-btn" onclick="deletePeriodEntry('${entry.date}')">🗑️</button>
+            <button class="period-delete-btn" onclick="deletePeriodEntry('${entry.date}')"><span class="icon" style="width:16px;height:16px">${icons.trashCan}</span></button>
         </div>`;
     });
     document.getElementById('periodHistoryList').innerHTML = html;
