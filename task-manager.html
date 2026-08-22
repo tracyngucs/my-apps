@@ -188,6 +188,17 @@
         .task-description li { margin-bottom: 4px; }
         .task-description p { margin: 0 0 8px 0; }
         .task-description p:last-child { margin-bottom: 0; }
+
+        /* Checkable bullet points inside task description */
+        .task-checklist { list-style: none; padding-left: 0; margin: 0 0 6px 0; }
+        .checklist-item { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 6px; }
+        .checklist-item:last-child { margin-bottom: 0; }
+        .checklist-checkbox { background: none; border: none; cursor: pointer; padding: 0; margin-top: 1px; color: #9ca3af; flex-shrink: 0; display: flex; transition: color 0.15s; }
+        .checklist-checkbox:hover { color: #4b5563; }
+        .checklist-checkbox .icon { width: 17px; height: 17px; }
+        .checklist-item.checked .checklist-checkbox { color: #16a34a; }
+        .checklist-text { flex: 1; }
+        .checklist-item.checked .checklist-text { text-decoration: line-through; color: #94a3b8; }
         .task-footer { display: flex; align-items: flex-end; justify-content: space-between; font-size: 0.75rem; color: #64748b; }
         .task-date { flex: 1; }
         .task-due-date { font-size: 0.75rem; color: #64748b; margin-top: 4px; }
@@ -789,17 +800,26 @@ function updateStats() {
     document.getElementById('statPending').textContent   = tasks.filter(t => !t.completed).length;
 }
 
-function renderDescription(description) {
+function renderDescription(taskId, description) {
     if (!description) return '';
     const lines = description.split('\n');
     let html = '<div class="task-description">';
     let inList = false;
 
-    lines.forEach(line => {
+    lines.forEach((line, idx) => {
         const t = line.trim();
         if (t.startsWith('- ')) {
-            if (!inList) { html += '<ul>'; inList = true; }
-            html += `<li>${esc(t.substring(2))}</li>`;
+            if (!inList) { html += '<ul class="task-checklist">'; inList = true; }
+            let text = t.substring(2);
+            let checked = false;
+            const m = text.match(/^\[(x|X| )\]\s*(.*)$/);
+            if (m) { checked = m[1].toLowerCase() === 'x'; text = m[2]; }
+            html += `<li class="checklist-item ${checked?'checked':''}">
+                <button class="checklist-checkbox" onclick="toggleDescItem(${taskId}, ${idx}, event)">
+                    <span class="icon">${checked ? icons.checkCircle : icons.circle}</span>
+                </button>
+                <span class="checklist-text">${esc(text)}</span>
+            </li>`;
         } else {
             if (inList) { html += '</ul>'; inList = false; }
             if (t) html += `<p>${esc(t)}</p>`;
@@ -809,6 +829,30 @@ function renderDescription(description) {
     if (inList) html += '</ul>';
     html += '</div>';
     return html;
+}
+
+async function toggleDescItem(taskId, lineIdx, event) {
+    event.stopPropagation();
+    const t = tasks.find(t => t.id == taskId);
+    if (!t || !t.description) return;
+    const lines = t.description.split('\n');
+    if (lineIdx < 0 || lineIdx >= lines.length) return;
+    const trimmed = lines[lineIdx].trim();
+    if (!trimmed.startsWith('- ')) return;
+
+    let text = trimmed.substring(2);
+    const m = text.match(/^\[(x|X| )\]\s*(.*)$/);
+    if (m) {
+        const checked = m[1].toLowerCase() === 'x';
+        text = m[2];
+        lines[lineIdx] = checked ? `- [ ] ${text}` : `- [x] ${text}`;
+    } else {
+        lines[lineIdx] = `- [x] ${text}`;
+    }
+
+    t.description = lines.join('\n');
+    renderTasks();
+    await saveTasks();
 }
 
 // Parse DD-MM-YYYY, YYYY-MM-DD, ISO strings, or anything else Sheets might return
@@ -954,7 +998,7 @@ function renderTasks() {
                             <span class="task-title ${task.completed?'completed':''}">${esc(task.title)}</span>
                             <span class="task-badge ${catClass}">${category}</span>
                         </div>
-                        ${task.description ? renderDescription(task.description) : ''}
+                        ${task.description ? renderDescription(task.id, task.description) : ''}
                         <div class="task-footer">
                             <div>
                                 <p class="task-date">Added ${task.createdAt}</p>
