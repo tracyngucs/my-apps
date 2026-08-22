@@ -458,8 +458,6 @@ body {
 
 <script>
 (function(){
-  const STORAGE_KEY = 'kept-watch-entries';
-
   const CARD_CLASSES = ['dream','other','reflection'];
   const CATEGORY_CARD_CLASS = {
     'dream': 'dream',
@@ -602,19 +600,28 @@ body {
     return d.toLocaleDateString(undefined, { month: 'short' }).toUpperCase();
   }
 
+  const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbysWAgZaR33HZtM3WezFia79LCjoPZsXy2EWOi3g0hmGma5ggidKrbOheGoIIuPjmGPRQ/exec';
+
   async function loadEntries(){
     try{
-      const result = await window.storage.get(STORAGE_KEY, false);
-      entries = result ? JSON.parse(result.value) : [];
+      const res = await fetch(APPS_SCRIPT_URL);
+      const data = await res.json();
+      entries = (data && data.entries) ? data.entries : [];
     }catch(err){
       entries = [];
+      showToast('Could not load entries — check your connection');
     }
   }
 
   async function persistEntries(){
     try{
-      const result = await window.storage.set(STORAGE_KEY, JSON.stringify(entries), false);
-      if(!result){ showToast('Could not save — please try again'); }
+      const res = await fetch(APPS_SCRIPT_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'replaceAll', entries: entries })
+      });
+      const data = await res.json();
+      if (!data || !data.ok){ showToast('Could not save — please try again'); }
     }catch(err){
       showToast('Could not save — please try again');
     }
