@@ -457,6 +457,11 @@
                     <label for="linkUrl">URL</label>
                     <input type="text" id="linkUrl" placeholder="https://…" />
                 </div>
+                <div class="form-group">
+                    <label for="linkCategory">Category</label>
+                    <input type="text" id="linkCategory" list="linkCategoryList" placeholder="Type new or pick existing…" />
+                    <datalist id="linkCategoryList"></datalist>
+                </div>
                 <button class="btn-primary" id="addLinkBtn" onclick="addLink()">➕ Save Link</button>
             </div>
 
@@ -1039,16 +1044,22 @@ async function loadLinks() {
     try {
         links = await apiGet('links');
         if (!Array.isArray(links)) links = [];
+        links = links.map(l => {
+            if (l && !l.category) l.category = 'Uncategorised';
+            return l;
+        });
     } catch (e) {
         showToast('Could not load links', true);
         links = [];
     }
     renderLinks();
+    updateLinkCategoryList();
 }
 
 async function addLink() {
-    const label = document.getElementById('linkLabel').value.trim();
-    let   url   = document.getElementById('linkUrl').value.trim();
+    const label    = document.getElementById('linkLabel').value.trim();
+    let   url      = document.getElementById('linkUrl').value.trim();
+    const category = document.getElementById('linkCategory').value.trim();
     if (!label) { showToast('Please enter a label', true); return; }
     if (!url)   { showToast('Please enter a URL', true);   return; }
     if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
@@ -1056,14 +1067,23 @@ async function addLink() {
     const btn = document.getElementById('addLinkBtn');
     btn.disabled = true; btn.textContent = '…Saving';
 
-    links.unshift({ id: Date.now(), label, url, createdAt: new Date().toLocaleDateString('en-GB').replace(/\//g, '-') });
+    links.unshift({ id: Date.now(), label, url, category: category || 'Uncategorised', createdAt: new Date().toLocaleDateString('en-GB').replace(/\//g, '-') });
     renderLinks();
+    updateLinkCategoryList();
     try { await apiPost('links', links); showToast('Link saved ✓'); }
     catch (e) { showToast('Save failed', true); }
 
-    document.getElementById('linkLabel').value = '';
-    document.getElementById('linkUrl').value   = '';
+    document.getElementById('linkLabel').value    = '';
+    document.getElementById('linkUrl').value      = '';
+    document.getElementById('linkCategory').value = '';
     btn.disabled = false; btn.textContent = '➕ Save Link';
+}
+
+function updateLinkCategoryList() {
+    const datalist = document.getElementById('linkCategoryList');
+    if (!datalist) return;
+    const cats = [...new Set(links.map(l => l && l.category).filter(c => c && c !== 'Uncategorised'))].sort();
+    datalist.innerHTML = cats.map(c => `<option value="${esc(c)}"></option>`).join('');
 }
 
 function startEditLink(id) {
@@ -1079,18 +1099,21 @@ function cancelEditLink() {
 }
 
 async function saveEditLink(id) {
-    const link  = links.find(l => l.id == id);
+    const link     = links.find(l => l.id == id);
     if (!link) return;
-    const label = document.getElementById(`edit-link-label-${id}`).value.trim();
-    let   url   = document.getElementById(`edit-link-url-${id}`).value.trim();
+    const label    = document.getElementById(`edit-link-label-${id}`).value.trim();
+    let   url      = document.getElementById(`edit-link-url-${id}`).value.trim();
+    const category = document.getElementById(`edit-link-cat-${id}`).value.trim();
     if (!label) { showToast('Label cannot be empty', true); return; }
     if (!url)   { showToast('URL cannot be empty', true);   return; }
     if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
 
-    link.label = label;
-    link.url   = url;
+    link.label    = label;
+    link.url      = url;
+    link.category = category || 'Uncategorised';
     editingLinkId = null;
     renderLinks();
+    updateLinkCategoryList();
     try { await apiPost('links', links); showToast('Updated ✓'); }
     catch (e) { showToast('Save failed', true); }
 }
@@ -1099,6 +1122,7 @@ async function deleteLink(id) {
     if (!confirm('Delete this link?')) return;
     links = links.filter(l => l.id != id);
     renderLinks();
+    updateLinkCategoryList();
     try { await apiPost('links', links); showToast('Deleted ✓'); }
     catch (e) { showToast('Delete failed', true); }
 }
@@ -1149,46 +1173,65 @@ function renderLinks() {
     }
     empty.style.display = 'none';
 
-    let html = '<div class="links-list">';
+    // Group links by category while keeping each link's original index
+    // (needed for drag-and-drop, which operates on the flat underlying array)
+    const groups = {};
     links.forEach((link, idx) => {
         if (!link?.url) return;
-        const isEditing = editingLinkId == link.id;
-        html += `<div class="link-card"
-            draggable="${!isEditing}"
-            ondragstart="onDragStart(event,${idx})"
-            ondragend="onDragEnd(event)"
-            ondragover="onDragOver(event,${idx})"
-            ondrop="onDrop(event,${idx})">`;
-
-        if (isEditing) {
-            html += `
-            <div class="drag-handle" style="opacity:0.3">⠿</div>
-            <div class="link-favicon">${getFavicon(link.url)}</div>
-            <div class="link-edit-form">
-                <input type="text" id="edit-link-label-${link.id}" value="${esc(link.label)}" placeholder="Label" />
-                <input type="text" id="edit-link-url-${link.id}"   value="${esc(link.url)}"   placeholder="https://…" />
-                <div class="link-edit-actions">
-                    <button class="link-save-btn"   onclick="saveEditLink(${link.id})">Save</button>
-                    <button class="link-cancel-btn" onclick="cancelEditLink()">Cancel</button>
-                </div>
-            </div>`;
-        } else {
-            html += `
-            <div class="drag-handle" title="Drag to reorder">⠿</div>
-            <div class="link-favicon">${getFavicon(link.url)}</div>
-            <div class="link-info">
-                <div class="link-label">${esc(link.label)}</div>
-                <a class="link-url" href="${esc(link.url)}" target="_blank" rel="noopener">${esc(link.url)}</a>
-            </div>
-            <div class="link-actions">
-                <button class="link-btn"        onclick="window.open('${esc(link.url)}','_blank')" title="Open">↗️</button>
-                <button class="link-btn edit"   onclick="startEditLink(${link.id})" title="Edit">✏️</button>
-                <button class="link-btn delete" onclick="deleteLink(${link.id})"    title="Delete">🗑️</button>
-            </div>`;
-        }
-        html += `</div>`;
+        const cat = link.category || 'Uncategorised';
+        if (!groups[cat]) groups[cat] = [];
+        groups[cat].push({ link, idx });
     });
-    html += '</div>';
+
+    const catNames = Object.keys(groups).sort((a, b) => {
+        if (a === 'Uncategorised') return 1;
+        if (b === 'Uncategorised') return -1;
+        return a.localeCompare(b);
+    });
+
+    let html = '';
+    catNames.forEach(catName => {
+        html += `<div class="category-section"><h3 class="category-title">${esc(catName)}</h3><div class="links-list">`;
+        groups[catName].forEach(({ link, idx }) => {
+            const isEditing = editingLinkId == link.id;
+            html += `<div class="link-card"
+                draggable="${!isEditing}"
+                ondragstart="onDragStart(event,${idx})"
+                ondragend="onDragEnd(event)"
+                ondragover="onDragOver(event,${idx})"
+                ondrop="onDrop(event,${idx})">`;
+
+            if (isEditing) {
+                html += `
+                <div class="drag-handle" style="opacity:0.3">⠿</div>
+                <div class="link-favicon">${getFavicon(link.url)}</div>
+                <div class="link-edit-form">
+                    <input type="text" id="edit-link-label-${link.id}" value="${esc(link.label)}" placeholder="Label" />
+                    <input type="text" id="edit-link-url-${link.id}"   value="${esc(link.url)}"   placeholder="https://…" />
+                    <input type="text" id="edit-link-cat-${link.id}"   value="${esc(link.category==='Uncategorised' ? '' : link.category)}" list="linkCategoryList" placeholder="Category — type new or pick existing…" />
+                    <div class="link-edit-actions">
+                        <button class="link-save-btn"   onclick="saveEditLink(${link.id})">Save</button>
+                        <button class="link-cancel-btn" onclick="cancelEditLink()">Cancel</button>
+                    </div>
+                </div>`;
+            } else {
+                html += `
+                <div class="drag-handle" title="Drag to reorder">⠿</div>
+                <div class="link-favicon">${getFavicon(link.url)}</div>
+                <div class="link-info">
+                    <div class="link-label">${esc(link.label)}</div>
+                    <a class="link-url" href="${esc(link.url)}" target="_blank" rel="noopener">${esc(link.url)}</a>
+                </div>
+                <div class="link-actions">
+                    <button class="link-btn"        onclick="window.open('${esc(link.url)}','_blank')" title="Open">↗️</button>
+                    <button class="link-btn edit"   onclick="startEditLink(${link.id})" title="Edit">✏️</button>
+                    <button class="link-btn delete" onclick="deleteLink(${link.id})"    title="Delete">🗑️</button>
+                </div>`;
+            }
+            html += `</div>`;
+        });
+        html += `</div></div>`;
+    });
     container.innerHTML = html;
 }
 
