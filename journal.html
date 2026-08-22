@@ -2,8 +2,19 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
 <title>Watch & Pray — a dream & prophecy journal</title>
+
+<!-- Home screen / PWA support -->
+<link rel="manifest" href="journal-manifest.json">
+<meta name="theme-color" content="#D99A32">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Watch & Pray">
+<link rel="apple-touch-icon" href="journal-icon-180.png">
+<link rel="icon" type="image/png" sizes="192x192" href="journal-icon-192.png">
+
 <style>
 /* =========================================================
    KEPT WATCH — PASTEL JOURNAL UI
@@ -44,6 +55,10 @@ body {
   color: var(--navy);
   font-family: Arial, Helvetica, sans-serif;
   -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: contain;
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
 .bg-blob{ position: fixed; border-radius: 50%; filter: blur(70px); pointer-events: none; z-index: 0; }
@@ -358,9 +373,9 @@ body {
   .branch-deco{ display: none; }
   .journal-title { font-size: 48px; }
   .journal-subtitle { font-size: 11px; letter-spacing: 2px; }
-  .write-button-inline { padding: 9px 16px; font-size: 13px; }
+  .write-button-inline { padding: 10px 18px; font-size: 14px; }
   .top-nav { gap: 22px; margin-top: 34px; }
-  .nav-button { font-size: 17px; }
+  .nav-button { font-size: 17px; padding-bottom: 14px; }
   .timeline { padding-left: 42px; }
   .timeline::before { left: 11px; }
   .timeline-dot { left: -38px; }
@@ -370,6 +385,18 @@ body {
   .entry-day { font-size: 26px; }
   .entry-title { font-size: 22px; }
   .entry-footer { margin-top: 18px; }
+
+  /* Prevent iOS Safari auto-zoom on focus (needs >=16px) and grow tap targets */
+  .search-box, .modal input, .modal textarea, .link-picker-input { font-size: 16px; }
+  .filter, .tag, .nav-button, .entry-actions button, .link-toggle-btn, .status-option { min-height: 40px; }
+  .filter, .write-button-inline { padding-top: 12px; padding-bottom: 12px; }
+  .modal { padding: 24px 20px; border-radius: 18px; }
+  .modal-actions button { min-height: 46px; }
+}
+
+@media (max-width: 720px) and (display-mode: standalone) {
+  /* Extra breathing room under the notch/status bar when launched from the Home Screen */
+  .journal-page { padding-top: 44px; }
 }
 
 @media (prefers-reduced-motion: reduce){ * { transition: none !important; } }
@@ -1225,6 +1252,19 @@ body {
     if (e.key === 'Escape'){
       if (!entryModal.hidden) closeEntryModal();
       if (expandedId){ expandedId = null; renderTimeline(); }
+    }
+  });
+
+  let isRefreshing = false;
+  document.addEventListener('visibilitychange', async () => {
+    if (document.visibilityState === 'visible' && !isRefreshing && !editingId && entryModal.hidden){
+      isRefreshing = true;
+      const keepExpanded = expandedId;
+      await loadEntries();
+      expandedId = keepExpanded;
+      renderAll();
+      if (activeTab === 'threads'){ buildThreadsView(); }
+      isRefreshing = false;
     }
   });
 
