@@ -3,10 +3,12 @@ const SHEET_ID       = '14aBkpWKEoLfJ3-_N33HmaltlMdd8gbzuXEeunnABm30';
 const TASKS_SHEET    = 'Tasks';
 const PERIOD_SHEET   = 'PeriodEntries';
 const LINKS_SHEET    = 'Links';
+const NOTES_SHEET    = 'Notes';
 
 const TASK_HEADERS   = ['id','title','description','notes','category','dueDate','priority','weekly','completed','createdAt'];
 const PERIOD_HEADERS = ['date'];
 const LINKS_HEADERS  = ['id','label','url','category','createdAt'];
+const NOTES_HEADERS  = ['id','content','createdAt'];
 
 // ── GET ──────────────────────────────────────────────────────
 function doGet(e) {
@@ -15,6 +17,7 @@ function doGet(e) {
     if (type === 'tasks')  return respond({ success: true, data: readSheet(TASKS_SHEET,  TASK_HEADERS)   });
     if (type === 'period') return respond({ success: true, data: readSheet(PERIOD_SHEET, PERIOD_HEADERS) });
     if (type === 'links')  return respond({ success: true, data: readSheet(LINKS_SHEET,  LINKS_HEADERS)  });
+    if (type === 'notes')  return respond({ success: true, data: readSheet(NOTES_SHEET,  NOTES_HEADERS)  });
     return respond({ success: false, error: 'Unknown type' });
   } catch (err) {
     return respond({ success: false, error: err.message });
@@ -31,6 +34,7 @@ function doPost(e) {
     if (type === 'tasks')  { writeSheet(TASKS_SHEET,  TASK_HEADERS,   data); return respond({ success: true }); }
     if (type === 'period') { writeSheet(PERIOD_SHEET, PERIOD_HEADERS, data); return respond({ success: true }); }
     if (type === 'links')  { writeSheet(LINKS_SHEET,  LINKS_HEADERS,  data); return respond({ success: true }); }
+    if (type === 'notes')  { writeSheet(NOTES_SHEET,  NOTES_HEADERS,  data); return respond({ success: true }); }
     return respond({ success: false, error: 'Unknown type' });
   } catch (err) {
     return respond({ success: false, error: err.message });
