@@ -609,6 +609,7 @@ body {
       entries = (data && data.entries) ? data.entries : [];
     }catch(err){
       entries = [];
+      console.error('Kept Watch: failed to load entries', err);
       showToast('Could not load entries — check your connection');
     }
   }
@@ -621,9 +622,16 @@ body {
         body: JSON.stringify({ action: 'replaceAll', entries: entries })
       });
       const data = await res.json();
-      if (!data || !data.ok){ showToast('Could not save — please try again'); }
+      if (!data || !data.ok){
+        console.error('Kept Watch: save rejected by backend', data);
+        showToast('Could not save — please try again');
+        return false;
+      }
+      return true;
     }catch(err){
+      console.error('Kept Watch: save request failed', err);
       showToast('Could not save — please try again');
+      return false;
     }
   }
 
@@ -969,10 +977,10 @@ body {
       });
     }
 
-    await persistEntries();
+    const saved = await persistEntries();
     closeEntryModal();
     renderAll();
-    showToast('Entry saved');
+    if (saved){ showToast('Entry saved'); }
   }
 
   async function toggleStatus(id){
@@ -1186,9 +1194,9 @@ body {
     if (idx !== -1){
       entries.splice(idx, 1);
       if (expandedId === id) expandedId = null;
-      await persistEntries();
+      const saved = await persistEntries();
       renderAll();
-      showToast('Entry deleted');
+      if (saved){ showToast('Entry deleted'); }
     }
   }
 
