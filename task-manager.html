@@ -279,7 +279,7 @@
         .link-url { font-size: 0.8rem; color: #3b82f6; text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
         .link-url:hover { text-decoration: underline; }
         .link-actions { display: flex; gap: 4px; flex-shrink: 0; }
-        .link-btn { background: none; border: none; cursor: pointer; color: #9ca3af; padding: 6px; border-radius: 6px; transition: all 0.2s; font-size: 1rem; }
+        .link-btn { background: none; border: none; cursor: pointer; color: #9ca3af; padding: 6px; border-radius: 6px; transition: all 0.2s; font-size: 1rem; display: inline-flex; align-items: center; justify-content: center; }
         .link-btn:hover { background: #f1f5f9; color: #4b5563; }
         .link-btn.delete:hover { background: #fef2f2; color: #dc2626; }
         .link-btn.edit:hover { background: #eff6ff; color: #2563eb; }
@@ -305,7 +305,7 @@
         .scratch-footer { display: flex; align-items: center; justify-content: space-between; }
         .scratch-date { font-size: 0.75rem; color: #94a3b8; }
         .scratch-actions { display: flex; gap: 4px; }
-        .scratch-btn { background: none; border: none; cursor: pointer; color: #9ca3af; padding: 6px; border-radius: 6px; transition: all 0.2s; font-size: 1rem; }
+        .scratch-btn { background: none; border: none; cursor: pointer; color: #9ca3af; padding: 6px; border-radius: 6px; transition: all 0.2s; font-size: 1rem; display: inline-flex; align-items: center; justify-content: center; }
         .scratch-btn:hover { background: #f1f5f9; color: #4b5563; }
         .scratch-btn.delete:hover { background: #fef2f2; color: #dc2626; }
         .scratch-btn.edit:hover { background: #eff6ff; color: #2563eb; }
@@ -1373,7 +1373,7 @@ function renderLinks() {
                 </div>
                 <div class="link-actions">
                     <button class="link-btn"        onclick="window.open('${esc(link.url)}','_blank')" title="Open">↗️</button>
-                    <button class="link-btn edit"   onclick="startEditLink(${link.id})" title="Edit">✏️</button>
+                    <button class="link-btn edit"   onclick="startEditLink(${link.id})" title="Edit"><span class="icon" style="width:16px;height:16px">${icons.edit}</span></button>
                     <button class="link-btn delete" onclick="deleteLink(${link.id})"    title="Delete">🗑️</button>
                 </div>`;
             }
@@ -1485,7 +1485,7 @@ function renderScratchNotes() {
             <div class="scratch-footer">
                 <span class="scratch-date">${note.createdAt || ''}</span>
                 <div class="scratch-actions">
-                    <button class="scratch-btn edit"   onclick="startEditScratch(${note.id})" title="Edit">✏️</button>
+                    <button class="scratch-btn edit"   onclick="startEditScratch(${note.id})" title="Edit"><span class="icon" style="width:16px;height:16px">${icons.edit}</span></button>
                     <button class="scratch-btn delete" onclick="deleteScratchNote(${note.id})" title="Delete">🗑️</button>
                 </div>
             </div>`;
