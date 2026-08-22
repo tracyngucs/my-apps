@@ -602,11 +602,20 @@ body {
 
   const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbysWAgZaR33HZtM3WezFia79LCjoPZsXy2EWOi3g0hmGma5ggidKrbOheGoIIuPjmGPRQ/exec';
 
+  function normalizeDateStr(dateStr){
+    // Defensive: guards against a date coming back as a full ISO timestamp
+    // (e.g. "2026-08-23T00:00:00.000Z") instead of a plain "YYYY-MM-DD"
+    // string — which otherwise breaks date parsing, more severely on some
+    // mobile browsers than on desktop.
+    return dateStr ? String(dateStr).split('T')[0] : dateStr;
+  }
+
   async function loadEntries(){
     try{
       const res = await fetch(APPS_SCRIPT_URL);
       const data = await res.json();
-      entries = (data && data.entries) ? data.entries : [];
+      const raw = (data && data.entries) ? data.entries : [];
+      entries = raw.map(e => ({ ...e, date: normalizeDateStr(e.date) }));
     }catch(err){
       entries = [];
       console.error('Kept Watch: failed to load entries', err);
