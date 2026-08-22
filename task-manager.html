@@ -274,6 +274,25 @@
         .link-cancel-btn { background: white; color: #475569; border: 1px solid #cbd5e1; padding: 6px 14px; border-radius: 7px; cursor: pointer; font-size: 0.85rem; font-weight: 500; transition: all 0.2s; }
         .link-cancel-btn:hover { background: #f1f5f9; }
 
+        /* Notes / Scratchpad */
+        .scratch-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 32px; }
+        .scratch-card {
+            background: white; border: 1px solid #e2e8f0; border-radius: 10px;
+            padding: 16px; transition: box-shadow 0.2s;
+        }
+        .scratch-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+        .scratch-text { color: #1e293b; font-size: 0.9rem; line-height: 1.6; white-space: pre-wrap; margin-bottom: 10px; word-break: break-word; }
+        .scratch-footer { display: flex; align-items: center; justify-content: space-between; }
+        .scratch-date { font-size: 0.75rem; color: #94a3b8; }
+        .scratch-actions { display: flex; gap: 4px; }
+        .scratch-btn { background: none; border: none; cursor: pointer; color: #9ca3af; padding: 6px; border-radius: 6px; transition: all 0.2s; font-size: 1rem; }
+        .scratch-btn:hover { background: #f1f5f9; color: #4b5563; }
+        .scratch-btn.delete:hover { background: #fef2f2; color: #dc2626; }
+        .scratch-btn.edit:hover { background: #eff6ff; color: #2563eb; }
+        .scratch-edit-form textarea { width: 100%; min-height: 90px; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit; font-size: 0.9rem; resize: vertical; margin-bottom: 8px; }
+        .scratch-edit-form textarea:focus { outline: none; box-shadow: 0 0 0 2px #3b82f6; border-color: transparent; }
+        .scratch-edit-actions { display: flex; gap: 6px; justify-content: flex-end; }
+
         /* Task notes panel */
         .task-notes-toggle {
             width: 100%; background: none; border: none; border-top: 1px solid rgba(0,0,0,0.06);
@@ -332,6 +351,7 @@
             <button class="tab-button active" onclick="switchTab('taskManager', event)">📋 Task Manager</button>
             <button class="tab-button"        onclick="switchTab('periodTracker', event)">📌 Period Tracker</button>
             <button class="tab-button"        onclick="switchTab('notesTab', event)">🔗 Links</button>
+            <button class="tab-button"        onclick="switchTab('scratchTab', event)">📝 Notes</button>
         </nav>
     </aside>
 
@@ -470,6 +490,31 @@
             <div id="linksEmptyState" class="empty-state" style="display:none">
                 <div class="empty-state-emoji">🔗</div>
                 <p class="empty-state-text">No links saved yet. Add your first one above!</p>
+            </div>
+        </div>
+        </div>
+
+        <!-- ── NOTES ── -->
+        <div id="scratchTab" class="tab-content">
+        <div class="container">
+            <header>
+                <h1>Notes</h1>
+                <p class="subtitle">Jot down anything — random notes, ideas, reminders</p>
+            </header>
+
+            <div class="form-card">
+                <h2>New Note</h2>
+                <div class="form-group">
+                    <textarea id="scratchInput" placeholder="Type a note…" style="min-height:90px"></textarea>
+                </div>
+                <button class="btn-primary" id="addScratchBtn" onclick="addScratchNote()">➕ Add Note</button>
+            </div>
+
+            <div id="scratchContainer"></div>
+
+            <div id="scratchEmptyState" class="empty-state" style="display:none">
+                <div class="empty-state-emoji">📝</div>
+                <p class="empty-state-text">No notes yet. Add your first idea above!</p>
             </div>
         </div>
         </div>
@@ -1236,6 +1281,118 @@ function renderLinks() {
 }
 
 // ============================================================
+// NOTES (scratchpad)
+// ============================================================
+let scratchNotes    = [];
+let editingScratchId = null;
+
+async function loadScratchNotes() {
+    try {
+        scratchNotes = await apiGet('notes');
+        if (!Array.isArray(scratchNotes)) scratchNotes = [];
+    } catch (e) {
+        showToast('Could not load notes', true);
+        scratchNotes = [];
+    }
+    renderScratchNotes();
+}
+
+async function addScratchNote() {
+    const content = document.getElementById('scratchInput').value.trim();
+    if (!content) { showToast('Please type something first', true); return; }
+
+    const btn = document.getElementById('addScratchBtn');
+    btn.disabled = true; btn.textContent = '…Saving';
+
+    scratchNotes.unshift({
+        id: Date.now(),
+        content,
+        createdAt: new Date().toLocaleDateString('en-GB').replace(/\//g, '-')
+    });
+    renderScratchNotes();
+
+    try { await apiPost('notes', scratchNotes); showToast('Note added ✓'); }
+    catch (e) { showToast('Save failed', true); }
+
+    document.getElementById('scratchInput').value = '';
+    btn.disabled = false; btn.textContent = '➕ Add Note';
+}
+
+function startEditScratch(id) {
+    editingScratchId = id;
+    renderScratchNotes();
+    setTimeout(() => {
+        const el = document.getElementById(`scratch-edit-${id}`);
+        if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); }
+    }, 50);
+}
+
+function cancelEditScratch() {
+    editingScratchId = null;
+    renderScratchNotes();
+}
+
+async function saveEditScratch(id) {
+    const note = scratchNotes.find(n => n.id == id);
+    if (!note) return;
+    const content = document.getElementById(`scratch-edit-${id}`).value.trim();
+    if (!content) { showToast('Note cannot be empty', true); return; }
+
+    note.content = content;
+    editingScratchId = null;
+    renderScratchNotes();
+    try { await apiPost('notes', scratchNotes); showToast('Updated ✓'); }
+    catch (e) { showToast('Save failed', true); }
+}
+
+async function deleteScratchNote(id) {
+    if (!confirm('Delete this note?')) return;
+    scratchNotes = scratchNotes.filter(n => n.id != id);
+    renderScratchNotes();
+    try { await apiPost('notes', scratchNotes); showToast('Deleted ✓'); }
+    catch (e) { showToast('Delete failed', true); }
+}
+
+function renderScratchNotes() {
+    const container = document.getElementById('scratchContainer');
+    const empty     = document.getElementById('scratchEmptyState');
+    if (!scratchNotes || scratchNotes.length === 0) {
+        container.innerHTML = ''; empty.style.display = 'block'; return;
+    }
+    empty.style.display = 'none';
+
+    let html = '<div class="scratch-list">';
+    scratchNotes.forEach(note => {
+        if (!note?.content) return;
+        const isEditing = editingScratchId == note.id;
+        html += `<div class="scratch-card">`;
+        if (isEditing) {
+            html += `
+            <div class="scratch-edit-form">
+                <textarea id="scratch-edit-${note.id}">${esc(note.content)}</textarea>
+                <div class="scratch-edit-actions">
+                    <button class="link-cancel-btn" onclick="cancelEditScratch()">Cancel</button>
+                    <button class="link-save-btn"   onclick="saveEditScratch(${note.id})">Save</button>
+                </div>
+            </div>`;
+        } else {
+            html += `
+            <div class="scratch-text">${esc(note.content)}</div>
+            <div class="scratch-footer">
+                <span class="scratch-date">${note.createdAt || ''}</span>
+                <div class="scratch-actions">
+                    <button class="scratch-btn edit"   onclick="startEditScratch(${note.id})" title="Edit">✏️</button>
+                    <button class="scratch-btn delete" onclick="deleteScratchNote(${note.id})" title="Delete">🗑️</button>
+                </div>
+            </div>`;
+        }
+        html += `</div>`;
+    });
+    html += '</div>';
+    container.innerHTML = html;
+}
+
+// ============================================================
 // Tab switcher
 // ============================================================
 function switchTab(tabName, event) {
@@ -1252,6 +1409,7 @@ function refreshAllData() {
     loadTasks();
     loadPeriodData();
     loadLinks();
+    loadScratchNotes();
 }
 
 document.addEventListener('DOMContentLoaded', () => {
