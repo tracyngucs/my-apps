@@ -969,7 +969,7 @@ body {
     setSelectedStatus('pending');
     refreshStatusFieldVisibility();
     entryModal.hidden = false;
-    setTimeout(()=> entryCategory.focus(), 30);
+    entryCategory.focus();
   }
 
   function openEditModal(entry){
@@ -1221,7 +1221,7 @@ body {
     wrap.appendChild(input);
     wrap.appendChild(results);
     renderResults('');
-    setTimeout(() => input.focus(), 20);
+    queueMicrotask(() => input.focus());
     return wrap;
   }
 
