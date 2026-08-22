@@ -6,7 +6,7 @@ const LINKS_SHEET    = 'Links';
 
 const TASK_HEADERS   = ['id','title','description','notes','category','dueDate','priority','weekly','completed','createdAt'];
 const PERIOD_HEADERS = ['date'];
-const LINKS_HEADERS  = ['id','label','url','createdAt'];
+const LINKS_HEADERS  = ['id','label','url','category','createdAt'];
 
 // ── GET ──────────────────────────────────────────────────────
 function doGet(e) {
