@@ -248,6 +248,8 @@
         .link-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
         .link-card.dragging { opacity: 0.4; }
         .link-card.drag-over { border: 2px dashed #3b82f6; background: #eff6ff; }
+        .task-card.dragging { opacity: 0.4; }
+        .task-card.drag-over { outline: 2px dashed #3b82f6; outline-offset: -2px; }
         .drag-handle { cursor: grab; color: #cbd5e1; font-size: 1.1rem; flex-shrink: 0; padding: 2px 4px; user-select: none; }
         .drag-handle:hover { color: #94a3b8; }
         .drag-handle:active { cursor: grabbing; }
@@ -610,6 +612,37 @@ async function saveTasks() {
     updateStats();
 }
 
+// ── Drag to reorder tasks ────────────────────────────────────
+let dragTaskSrcId = null;
+
+function onTaskDragStart(e, id) {
+    dragTaskSrcId = id;
+    e.dataTransfer.effectAllowed = 'move';
+    setTimeout(() => e.target.closest('.task-card')?.classList.add('dragging'), 0);
+}
+function onTaskDragEnd(e) {
+    e.target.closest('.task-card')?.classList.remove('dragging');
+    document.querySelectorAll('.task-card').forEach(c => c.classList.remove('drag-over'));
+}
+function onTaskDragOver(e, id) {
+    e.preventDefault();
+    document.querySelectorAll('.task-card').forEach(c => c.classList.remove('drag-over'));
+    if (id !== dragTaskSrcId) e.currentTarget.classList.add('drag-over');
+}
+async function onTaskDrop(e, id) {
+    e.preventDefault();
+    e.currentTarget.classList.remove('drag-over');
+    if (dragTaskSrcId === null || dragTaskSrcId === id) return;
+    const srcIdx = tasks.findIndex(t => t.id == dragTaskSrcId);
+    const tgtIdx = tasks.findIndex(t => t.id == id);
+    dragTaskSrcId = null;
+    if (srcIdx === -1 || tgtIdx === -1) return;
+    const moved = tasks.splice(srcIdx, 1)[0];
+    tasks.splice(tgtIdx, 0, moved);
+    renderTasks();
+    await saveTasks();
+}
+
 async function addTask() {
     const title       = document.getElementById('taskTitle').value.trim();
     const description = document.getElementById('taskDescription').value.trim();
@@ -882,7 +915,12 @@ function renderTasks() {
         } else {
             html += `<div class="task-list">`;
             list.forEach(task => {
-                html += `<div class="task-card ${catClass} ${task.completed ? 'completed' : ''}">`;
+                html += `<div class="task-card ${catClass} ${task.completed ? 'completed' : ''}"
+                    draggable="${editingId != task.id}"
+                    ondragstart="onTaskDragStart(event,${task.id})"
+                    ondragend="onTaskDragEnd(event)"
+                    ondragover="onTaskDragOver(event,${task.id})"
+                    ondrop="onTaskDrop(event,${task.id})">`;
                 if (editingId == task.id) {
                     html += `<div class="edit-mode"><div class="edit-form">
                         <div class="edit-form-group"><label>Title</label>
@@ -909,6 +947,7 @@ function renderTasks() {
                     const hasNotes = task.notes && task.notes.trim();
                     html += `<div class="task-content" onclick="startEdit(${task.id}, event)">
                         <div class="task-header">
+                            <div class="drag-handle" onclick="event.stopPropagation()" title="Drag to reorder">⠿</div>
                             <button class="task-checkbox" onclick="toggleComplete(${task.id}, event)">
                                 <span class="icon" style="color:${task.completed?'#16a34a':'#9ca3af'}">
                                     ${task.completed ? icons.checkCircle : icons.circle}</span></button>
