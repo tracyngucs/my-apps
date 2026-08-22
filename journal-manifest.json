@@ -1,6 +1,6 @@
 {
-  "name": "Watch & Pray",
-  "short_name": "Watch & Pray",
+  "name": "W&P Journal",
+  "short_name": "W&P Journal",
   "description": "A dream & prophecy journal",
   "start_url": "journal.html",
   "scope": "journal.html",
