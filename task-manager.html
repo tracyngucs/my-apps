@@ -161,6 +161,11 @@
         .filter-btn.active.weekly { background: #7c3aed; }
         .filter-btn.active.pending { background: #ea580c; }
         .filter-btn.active.completed { background: #16a34a; }
+        .filter-btn.active.church { background: #2563eb; }
+        .filter-btn.active.business { background: #d97706; }
+        .filter-btn.active.personal { background: #16a34a; }
+        .filters-row { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+        .filters-label { font-size: 0.75rem; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin: 4px 0 6px; }
 
         /* Task Cards */
         .category-section { margin-bottom: 24px; }
@@ -421,6 +426,12 @@
                 <button class="filter-btn weekly"           onclick="setFilter('weekly',    event)">🔁 Weekly</button>
                 <button class="filter-btn pending"          onclick="setFilter('incomplete',event)">Pending</button>
                 <button class="filter-btn completed"        onclick="setFilter('completed', event)">Completed</button>
+            </div>
+            <div class="filters-row">
+                <button class="filter-btn active all"    onclick="setCategoryFilter('all',      event)">All Categories</button>
+                <button class="filter-btn church"        onclick="setCategoryFilter('Church',   event)">Church</button>
+                <button class="filter-btn business"      onclick="setCategoryFilter('Business', event)">Business</button>
+                <button class="filter-btn personal"      onclick="setCategoryFilter('Personal', event)">Personal</button>
             </div>
 
             <div id="tasksContainer"></div>
@@ -777,15 +788,25 @@ function cancelEdit(event) {
     renderTasks();
 }
 
+let currentCategoryFilter = 'all';
+
 function setFilter(filter, event) {
     currentFilter = filter;
-    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.filters .filter-btn').forEach(b => b.classList.remove('active'));
+    event.target.classList.add('active');
+    renderTasks();
+}
+
+function setCategoryFilter(category, event) {
+    currentCategoryFilter = category;
+    document.querySelectorAll('.filters-row .filter-btn').forEach(b => b.classList.remove('active'));
     event.target.classList.add('active');
     renderTasks();
 }
 
 function getFilteredTasks() {
     return tasks.filter(t => {
+        if (currentCategoryFilter !== 'all' && t.category !== currentCategoryFilter) return false;
         if (currentFilter === 'urgent')     return t.priority && !t.completed;
         if (currentFilter === 'weekly')     return t.weekly && !t.completed;
         if (currentFilter === 'completed')  return t.completed;
@@ -941,11 +962,9 @@ function renderTasks() {
     const container = document.getElementById('tasksContainer');
     const empty     = document.getElementById('emptyState');
     const filtered  = getFilteredTasks();
-    const grouped   = {
-        Church:   filtered.filter(t => t.category === 'Church'),
-        Business: filtered.filter(t => t.category === 'Business'),
-        Personal: filtered.filter(t => t.category === 'Personal')
-    };
+    const catList   = currentCategoryFilter === 'all' ? ['Church','Business','Personal'] : [currentCategoryFilter];
+    const grouped   = {};
+    catList.forEach(cat => { grouped[cat] = filtered.filter(t => t.category === cat); });
 
     if (tasks.length === 0) { container.innerHTML = ''; empty.style.display = 'block'; return; }
     empty.style.display = 'none';
